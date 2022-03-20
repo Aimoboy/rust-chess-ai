@@ -526,4 +526,61 @@ impl ChessBoard {
             }
         }
     }
+
+    fn generate_king_moves(board: &ChessBoard, piece: &ChessPiece, move_vector: &mut Vec<Move>, pos: Pos) {
+        let (letter, number) = pos;
+
+        // Normal king moves
+        let possible_moves = [(0, 1), (1, 1), (1, 0), (1, -1), (0, -1), (-1, -1), (-1, 0), (-1, 1)];
+        
+        for p in possible_moves {
+            let (letter_diff, number_diff) = p;
+            let (letter_new, number_new) = (letter as i32 + letter_diff, number as i32 + number_diff);
+            if 0 <= letter_new && letter_new < 8 && 0 <= number_new && number_new < 8 {
+                let (letter_new, number_new) = (letter_new as usize, number_new as usize);
+
+                match &board.board[letter_new][number_new] {
+                    Some(other_piece) => {
+                        if piece.color != other_piece.color {
+                            let moves = vec!((pos, (letter_new, number_new)));
+                            let deletion = Some((letter_new, number_new));
+                            move_vector.push(Move::new(moves, deletion));
+                        }
+                    },
+                    None => {
+                        let moves = vec!((pos, (letter_new, number_new)));
+                        let deletion = None;
+                        move_vector.push(Move::new(moves, deletion));
+                    }
+                }
+            }
+        }
+
+        // Left castle
+        if letter == 4 && !piece.moved {
+            if board.board[3][number].is_none() && board.board[2][number].is_none() && board.board[1][number].is_none() {
+                if let Some(rook_piece) = &board.board[0][number] {
+                    if piece.color == rook_piece.color && rook_piece.typ == PieceType::Rook && !rook_piece.moved {
+                        let moves = vec![(pos, (2, number)), ((0, number), (3, number))];
+                            let deletion = None;
+                            move_vector.push(Move::new(moves, deletion));
+                    }
+                }
+            }
+        }
+
+        // Right castle
+        if letter == 4 && !piece.moved {
+            if board.board[5][number].is_none() && board.board[6][number].is_none() {
+                if let Some(rook_piece) = &board.board[7][number] {
+                    if piece.color == rook_piece.color && rook_piece.typ == PieceType::Rook && !rook_piece.moved {
+                        let moves = vec![(pos, (6, number)), ((7, number), (5, number))];
+                            let deletion = None;
+                            move_vector.push(Move::new(moves, deletion));
+                    }
+                }
+            }
+        }
+
+    }
 }
