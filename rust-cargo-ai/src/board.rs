@@ -1,6 +1,6 @@
-type Pos = (usize, usize);
+pub type Pos = (usize, usize);
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum PieceType {
     Pawn = 0,
     Rook = 1,
@@ -10,7 +10,7 @@ pub enum PieceType {
     King = 5
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum PieceColor {
     White = 0,
     Black = 1
@@ -28,7 +28,7 @@ enum Letter {
 }
 
 pub struct Move {
-    moves: Vec<(Pos, Pos)>,
+    pub moves: Vec<(Pos, Pos)>,
     deletion: Option<Pos>
 }
 
@@ -41,7 +41,7 @@ impl Move {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct ChessPiece {
     typ: PieceType,
     color: PieceColor,
@@ -80,6 +80,7 @@ impl ChessPiece {
 }
 
 // Letter is first index then number
+#[derive(Clone)]
 pub struct ChessBoard {
     board: [[Option<ChessPiece>; 8]; 8]
 }
@@ -175,7 +176,7 @@ impl ChessBoard {
         string
     }
 
-    pub fn generate_moveset_board(board: &ChessBoard, previous_board: Option<&ChessBoard>, color: PieceColor) -> [[Vec<Move>; 8]; 8] {
+    pub fn generate_moveset_board(board: &ChessBoard, previous_board: Option<&ChessBoard>, turn: &PieceColor) -> [[Vec<Move>; 8]; 8] {
         const START_CAPACITY: usize = 15;
         let mut move_board = [[Vec::with_capacity(START_CAPACITY), Vec::with_capacity(START_CAPACITY), Vec::with_capacity(START_CAPACITY), Vec::with_capacity(START_CAPACITY), Vec::with_capacity(START_CAPACITY), Vec::with_capacity(START_CAPACITY), Vec::with_capacity(START_CAPACITY), Vec::with_capacity(START_CAPACITY)],
                               [Vec::with_capacity(START_CAPACITY), Vec::with_capacity(START_CAPACITY), Vec::with_capacity(START_CAPACITY), Vec::with_capacity(START_CAPACITY), Vec::with_capacity(START_CAPACITY), Vec::with_capacity(START_CAPACITY), Vec::with_capacity(START_CAPACITY), Vec::with_capacity(START_CAPACITY)],
@@ -190,7 +191,9 @@ impl ChessBoard {
             for j in 0..8 {
                 match &board.board[i][j] {
                     Some(piece) => {
-                        Self::generate_moveset(board, previous_board, piece, &mut move_board[i][j], (i, j));
+                        if piece.color == *turn {
+                            Self::generate_moveset(board, previous_board, piece, &mut move_board[i][j], (i, j));
+                        }
                     },
                     None => ()
                 }
@@ -221,7 +224,7 @@ impl ChessBoard {
                 Self::generate_bishop_moves(board, piece, move_vector, pos);
             },
             PieceType::King => {
-
+                Self::generate_king_moves(board, piece, move_vector, pos);
             }
         }
     }
@@ -340,8 +343,8 @@ impl ChessBoard {
                             let moves = vec!((pos, (letter, number + i)));
                             let deletion = Some((letter, number + i));
                             move_vector.push(Move::new(moves, deletion));
-                            break;
                         }
+                        break;
                     }
                 }
             }
@@ -582,5 +585,9 @@ impl ChessBoard {
             }
         }
 
+    }
+
+    pub fn do_move(mov: &Move, board: &ChessBoard) {
+        board.clone();
     }
 }
