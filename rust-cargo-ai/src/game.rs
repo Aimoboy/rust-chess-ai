@@ -19,12 +19,13 @@ impl Game {
         }
     }
 
-    pub fn run(game: Game, white_turn_choice: fn (board: &ChessBoard, turn: &PieceColor) -> String, black_turn_choice: fn (board: &ChessBoard, turn: &PieceColor) -> String) {
+    pub fn run(mut game: Game, white_turn_choice: fn (board: &ChessBoard, turn: &PieceColor) -> String, black_turn_choice: fn (board: &ChessBoard, turn: &PieceColor) -> String) {
+        print!("\x1B[2J\x1B[1;1H");
         loop {
             let history_len = game.board_history.len();
             let prev_board = if history_len > 1 { Some(&game.board_history[history_len - 2] ) } else { None };
             let current_board = &game.board_history[history_len - 1];
-            let move_board = ChessBoard::generate_moveset_board(current_board, prev_board, &game.turn);
+            let move_board = ChessBoard::generate_moveset_board(current_board, prev_board, game.turn);
 
             let res: String = match &game.turn {
                 PieceColor::White => white_turn_choice(current_board, &game.turn),
@@ -32,15 +33,29 @@ impl Game {
             };
 
             if !Self::validate_move_string(&res) {
+                print!("\x1B[2J\x1B[1;1H");
                 println!("Not valid string");
                 continue;
             }
 
-            if !Self::validate_move(Self::string_to_move(&res), &move_board) {
+            let (res, mov) = Self::validate_move(Self::string_to_move(&res), &move_board);
+
+            if !res {
+                print!("\x1B[2J\x1B[1;1H");
                 println!("Not valid move");
                 continue;
             }
 
+            let new_board = current_board.do_move(mov.unwrap());
+
+            game.board_history.push(new_board);
+
+            match game.turn {
+                PieceColor::White => game.turn = PieceColor::Black,
+                PieceColor::Black => game.turn = PieceColor::White
+            }
+
+            print!("\x1B[2J\x1B[1;1H");
         }
     }
 
@@ -102,7 +117,7 @@ impl Game {
         ((Self::char_to_index(letter_from_char, &valid_letters), Self::char_to_index(number_from_char, &valid_numbers)), (Self::char_to_index(letter_to_char, &valid_letters), Self::char_to_index(number_to_char, &valid_numbers)))
     }
 
-    fn validate_move(m: (Pos, Pos), move_board: &[[Vec<Move>; 8]; 8]) -> bool {
+    fn validate_move(m: (Pos, Pos), move_board: &[[Vec<Move>; 8]; 8]) -> (bool, Option<&Move>) {
         let ((letter_from, number_from), (letter_to, number_to)) = m;
 
         let vector = &move_board[letter_from][number_from];
@@ -112,24 +127,22 @@ impl Game {
                 let (_, to) = vector[i].moves[j];
                 if letter_to == to.0 && number_to == to.1 {
                     println!("Validated!");
-                    return true;
+                    return (true, Some(&vector[i]));
                 }
             }
         }
 
-        false
+        (false, None)
     }
 
     pub fn player_move(board: &ChessBoard, turn: &PieceColor) -> String {
-        // print!("\x1B[2J\x1B[1;1H");
-
         let color_str = match turn {
             PieceColor::White => "White",
             PieceColor::Black => "Black"
         };
 
-        println!("It is {}'s turn! (You)", color_str);
-        println!("{}", ChessBoard::board_ascii(board));
+        println!("It is {}'s turn! (You)\n", color_str);
+        println!("{}", ChessBoard::board_ascii(board, true));
         print!("\nEnter your move: ");
         std::io::stdout().flush();
 
