@@ -1,5 +1,4 @@
 use super::board::*;
-use std::io::{self, Write};
 
 const BOARD_HISTORY_START_CAPACITY: usize = 100;
 
@@ -19,21 +18,25 @@ impl Game {
         }
     }
 
-    pub fn run(mut game: Game, white_turn_choice: fn (board: &ChessBoard, turn: &PieceColor) -> String, black_turn_choice: fn (board: &ChessBoard, turn: &PieceColor) -> String) {
-        print!("\x1B[2J\x1B[1;1H");
-        loop {
+    pub fn run(mut game: Game, white_turn_choice: fn (board: &ChessBoard, turn: PieceColor) -> String, black_turn_choice: fn (board: &ChessBoard, turn: PieceColor) -> String) {
+        // print!("\x1B[2J\x1B[1;1H");
+        let win_type = loop {
+            let opponent_color = match game.turn {
+                PieceColor::White => PieceColor::Black,
+                PieceColor::Black => PieceColor::White
+            };
             let history_len = game.board_history.len();
             let prev_board = if history_len > 1 { Some(&game.board_history[history_len - 2] ) } else { None };
             let current_board = &game.board_history[history_len - 1];
             let move_board = ChessBoard::generate_moveset_board(current_board, prev_board, game.turn);
 
             let res: String = match &game.turn {
-                PieceColor::White => white_turn_choice(current_board, &game.turn),
-                PieceColor::Black => black_turn_choice(current_board, &game.turn)
+                PieceColor::White => white_turn_choice(current_board, game.turn),
+                PieceColor::Black => black_turn_choice(current_board, game.turn)
             };
 
             if !Self::validate_move_string(&res) {
-                print!("\x1B[2J\x1B[1;1H");
+                // print!("\x1B[2J\x1B[1;1H");
                 println!("Not valid string");
                 continue;
             }
@@ -41,21 +44,36 @@ impl Game {
             let (res, mov) = Self::validate_move(Self::string_to_move(&res), &move_board);
 
             if !res {
-                print!("\x1B[2J\x1B[1;1H");
+                // print!("\x1B[2J\x1B[1;1H");
                 println!("Not valid move");
                 continue;
             }
 
             let new_board = current_board.do_move(mov.unwrap());
 
-            game.board_history.push(new_board);
-
-            match game.turn {
-                PieceColor::White => game.turn = PieceColor::Black,
-                PieceColor::Black => game.turn = PieceColor::White
+            match &new_board.check_for_game_end(Some(current_board), opponent_color) {
+                EndType::NoEnd => (),
+                typ => {
+                    game.board_history.push(new_board);
+                    break typ.clone()
+                }
             }
 
-            print!("\x1B[2J\x1B[1;1H");
+            game.board_history.push(new_board);
+            game.turn = opponent_color;
+
+            // print!("\x1B[2J\x1B[1;1H");
+        };
+
+        // print!("\x1B[2J\x1B[1;1H");
+        println!("{}\n", ChessBoard::board_ascii(&game.board_history[game.board_history.len() - 1], true));
+        if win_type == EndType::Checkmate {
+            match game.turn {
+                PieceColor::White => println!("White won by checkmate!"),
+                PieceColor::Black => println!("Black won by checkmate!")
+            }
+        } else if win_type == EndType::Tie {
+            println!("Game ended in a tie.");
         }
     }
 
@@ -134,21 +152,5 @@ impl Game {
 
         (false, None)
     }
-
-    pub fn player_move(board: &ChessBoard, turn: &PieceColor) -> String {
-        let color_str = match turn {
-            PieceColor::White => "White",
-            PieceColor::Black => "Black"
-        };
-
-        println!("It is {}'s turn! (You)\n", color_str);
-        println!("{}", ChessBoard::board_ascii(board, true));
-        print!("\nEnter your move: ");
-        std::io::stdout().flush();
-
-        let mut inp = String::new();
-        io::stdin().read_line(&mut inp);
-        
-        inp
-    }
 }
+

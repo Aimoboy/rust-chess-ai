@@ -5,8 +5,8 @@ type ReachBoard = [[bool; 8]; 8];
 pub enum PieceType {
     Pawn = 0,
     Rook = 1,
-    Bishop = 2,
-    Knight = 3,
+    Knight = 2,
+    Bishop = 3,
     Queen = 4,
     King = 5
 }
@@ -17,23 +17,31 @@ pub enum PieceColor {
     Black = 1
 }
 
-#[derive(Debug, PartialEq, Clone, Copy)]
-enum Letter {
-    A = 0,
-    B = 1,
-    C = 2,
-    D = 3,
-    E = 4,
-    F = 5,
-    G = 6,
-    H = 7
+#[derive(PartialEq, Clone, Copy)]
+pub enum EndType {
+    NoEnd = 0,
+    Tie = 1,
+    Checkmate = 2
 }
-enum GetPieceError {
+
+// #[derive(Debug, PartialEq, Clone, Copy)]
+// enum Letter {
+//     A = 0,
+//     B = 1,
+//     C = 2,
+//     D = 3,
+//     E = 4,
+//     F = 5,
+//     G = 6,
+//     H = 7
+// }
+
+pub enum GetPieceError {
     OutsideBounds = 0,
     NoKing = 1
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Move {
     pub moves: Vec<(Pos, Pos)>,
     deletion: Option<Pos>
@@ -49,9 +57,9 @@ impl Move {
 }
 
 #[derive(Debug, Clone)]
-struct ChessPiece {
-    typ: PieceType,
-    color: PieceColor,
+pub struct ChessPiece {
+    pub typ: PieceType,
+    pub color: PieceColor,
     moved: bool
 }
 
@@ -69,16 +77,16 @@ impl ChessPiece {
             PieceColor::White => match piece.typ {
                                     PieceType::Pawn => 'p',
                                     PieceType::Rook => 'r',
-                                    PieceType::Bishop => 'b',
                                     PieceType::Knight => 'n',
+                                    PieceType::Bishop => 'b',
                                     PieceType::Queen => 'q',
                                     PieceType::King => 'k'
                                 }
             PieceColor::Black => match piece.typ {
                                     PieceType::Pawn => 'P',
                                     PieceType::Rook => 'R',
-                                    PieceType::Bishop => 'B',
                                     PieceType::Knight => 'N',
+                                    PieceType::Bishop => 'B',
                                     PieceType::Queen => 'Q',
                                     PieceType::King => 'K'
                                 }
@@ -90,16 +98,16 @@ impl ChessPiece {
             PieceColor::White => match piece.typ {
                                     PieceType::Pawn => '\u{265F}',
                                     PieceType::Rook => '\u{265C}',
-                                    PieceType::Bishop => '\u{265D}',
                                     PieceType::Knight => '\u{265E}',
+                                    PieceType::Bishop => '\u{265D}',
                                     PieceType::Queen => '\u{265B}',
                                     PieceType::King => '\u{265A}'
                                 }
             PieceColor::Black => match piece.typ {
                                     PieceType::Pawn => '\u{2659}',
                                     PieceType::Rook => '\u{2656}',
-                                    PieceType::Bishop => '\u{2657}',
                                     PieceType::Knight => '\u{2658}',
+                                    PieceType::Bishop => '\u{2657}',
                                     PieceType::Queen => '\u{2655}',
                                     PieceType::King => '\u{2654}'
                                 }
@@ -114,7 +122,7 @@ pub struct ChessBoard {
 }
 
 impl ChessBoard {
-    fn get_piece(&self, letter: i32, number: i32) -> Result<Option<&ChessPiece>, GetPieceError> {
+    pub fn get_piece(&self, letter: i32, number: i32) -> Result<Option<&ChessPiece>, GetPieceError> {
         if letter < 0 || letter >= 8 || number < 0 || number >= 8 {
             return Err(GetPieceError::OutsideBounds);
         }
@@ -147,17 +155,17 @@ impl ChessBoard {
 
         board[0][0] = Some(ChessPiece::new(PieceType::Rook, PieceColor::White));
 
-        board[1][0] = Some(ChessPiece::new(PieceType::Bishop, PieceColor::White));
+        board[1][0] = Some(ChessPiece::new(PieceType::Knight, PieceColor::White));
 
-        board[2][0] = Some(ChessPiece::new(PieceType::Knight, PieceColor::White));
+        board[2][0] = Some(ChessPiece::new(PieceType::Bishop, PieceColor::White));
 
         board[3][0] = Some(ChessPiece::new(PieceType::Queen, PieceColor::White));
 
         board[4][0] = Some(ChessPiece::new(PieceType::King, PieceColor::White));
 
-        board[5][0] = Some(ChessPiece::new(PieceType::Knight, PieceColor::White));
+        board[5][0] = Some(ChessPiece::new(PieceType::Bishop, PieceColor::White));
 
-        board[6][0] = Some(ChessPiece::new(PieceType::Bishop, PieceColor::White));
+        board[6][0] = Some(ChessPiece::new(PieceType::Knight, PieceColor::White));
 
         board[7][0] = Some(ChessPiece::new(PieceType::Rook, PieceColor::White));
 
@@ -171,17 +179,17 @@ impl ChessBoard {
 
         board[0][7] = Some(ChessPiece::new(PieceType::Rook, PieceColor::Black));
 
-        board[1][7] = Some(ChessPiece::new(PieceType::Bishop, PieceColor::Black));
+        board[1][7] = Some(ChessPiece::new(PieceType::Knight, PieceColor::Black));
 
-        board[2][7] = Some(ChessPiece::new(PieceType::Knight, PieceColor::Black));
+        board[2][7] = Some(ChessPiece::new(PieceType::Bishop, PieceColor::Black));
 
         board[3][7] = Some(ChessPiece::new(PieceType::Queen, PieceColor::Black));
 
         board[4][7] = Some(ChessPiece::new(PieceType::King, PieceColor::Black));
 
-        board[5][7] = Some(ChessPiece::new(PieceType::Knight, PieceColor::Black));
+        board[5][7] = Some(ChessPiece::new(PieceType::Bishop, PieceColor::Black));
 
-        board[6][7] = Some(ChessPiece::new(PieceType::Bishop, PieceColor::Black));
+        board[6][7] = Some(ChessPiece::new(PieceType::Knight, PieceColor::Black));
 
         board[7][7] = Some(ChessPiece::new(PieceType::Rook, PieceColor::Black));
 
@@ -191,7 +199,11 @@ impl ChessBoard {
     }
 
     pub fn board_ascii(&self, use_unicode: bool) -> String {
-        let mut string = String::with_capacity(645);
+        let mut string = if use_unicode {
+            String::with_capacity(844)
+        } else {
+            String::with_capacity(645)
+        };
         
         for i in (0..8).rev() {
             if use_unicode {
@@ -241,7 +253,7 @@ impl ChessBoard {
         string
     }
 
-    fn generate_reachable_tiles_board(&self, color: PieceColor) -> ReachBoard {
+    pub fn generate_reachable_tiles_board(&self, color: PieceColor) -> ReachBoard {
         let mut reach_board = [[false; 8]; 8];
 
         for i in 0..8 {
@@ -379,8 +391,16 @@ impl ChessBoard {
 
         for mov in moves {
             let ((letter_from, number_from), (letter_to, number_to)) = mov;
-            new_board.board[*letter_to][*number_to] = new_board.board[*letter_from][*number_from].clone();
-            new_board.board[*letter_from][*number_from] = None;
+            if let Some(mut new_piece) = new_board.board[*letter_from][*number_from].clone() {
+                new_piece.moved = true;
+
+                if new_piece.typ == PieceType::Pawn && (new_piece.color == PieceColor::White && *number_to == 7 || new_piece.color == PieceColor::Black && *number_to == 0) {
+                    new_piece.typ = PieceType::Queen;
+                }
+
+                new_board.board[*letter_to][*number_to] = Some(new_piece);
+                new_board.board[*letter_from][*number_from] = None;
+            }
         }
 
         new_board
@@ -410,7 +430,7 @@ impl ChessBoard {
         move_board
     }
 
-    fn get_king_pos(&self, color: PieceColor) -> Result<Pos, GetPieceError> {
+    pub fn get_king_pos(&self, color: PieceColor) -> Result<Pos, GetPieceError> {
         for i in 0..8 {
             for j in 0..8 {
                 if let Some(piece) = &self.board[i][j] {
@@ -426,21 +446,19 @@ impl ChessBoard {
 
     fn check_move(&self, mov: &Move, color: PieceColor) -> bool {
         let new_board = self.do_move(mov);
-        let enemy_reach_board = match color {
+        let opponent_reach_board = match color {
             PieceColor::White => new_board.generate_reachable_tiles_board(PieceColor::Black),
             PieceColor::Black => new_board.generate_reachable_tiles_board(PieceColor::White)
         };
 
         if let Ok((king_pos_letter, king_pos_number)) = new_board.get_king_pos(color) {
-            return !enemy_reach_board[king_pos_letter][king_pos_number];
+            return !opponent_reach_board[king_pos_letter][king_pos_number];
         }
 
         false
     }
 
     fn generate_moveset(board: &ChessBoard, previous_board: Option<&ChessBoard>, piece: &ChessPiece, move_vector: &mut Vec<Move>, pos: Pos) {
-        let (letter, number) = pos;
-
         let possible_moves = match piece.typ {
             PieceType::Pawn => {
                 Self::generate_pawn_moves(board, previous_board, piece, pos)
@@ -448,11 +466,11 @@ impl ChessBoard {
             PieceType::Rook => {
                 Self::generate_rook_moves(board, piece, pos)
             },
-            PieceType::Bishop => {
-                Self::generate_bishop_moves(board, piece, pos)
-            },
             PieceType::Knight => {
                 Self::generate_knight_moves(board, piece, pos)
+            },
+            PieceType::Bishop => {
+                Self::generate_bishop_moves(board, piece, pos)
             },
             PieceType::Queen => {
                 Self::generate_queen_moves(board, piece, pos)
@@ -483,11 +501,16 @@ impl ChessBoard {
         }
 
         // Double step
-        let new_number = number as i32 + side_const * 2;
-        if let Ok(None) = &board.get_piece(letter as i32, new_number) {
-            let moves = vec!((pos, (letter, new_number as usize)));
-            let deletion = None;
-            move_vector.push(Move::new(moves, deletion));
+        if !piece.moved {
+            let new_number = number as i32 + side_const;
+            if let Ok(None) = &board.get_piece(letter as i32, new_number) {
+                let new_number = number as i32 + side_const * 2;
+                if let Ok(None) = &board.get_piece(letter as i32, new_number) {
+                    let moves = vec!((pos, (letter, new_number as usize)));
+                    let deletion = None;
+                    move_vector.push(Move::new(moves, deletion));
+                }
+            }
         }
 
         // Left, right
@@ -520,9 +543,9 @@ impl ChessBoard {
                         if let Some(prev_board) = previous_board {
                             if let Ok(Some(prev_piece)) = prev_board.get_piece(new_letter, new_number) {
                                 if prev_piece.color != piece.color && prev_piece.typ == PieceType::Pawn {
-                                    let moves = vec!((pos, (letter + dir as usize, number + side_const as usize)));
-                                        let deletion = Some((letter + dir as usize, number));
-                                        move_vector.push(Move::new(moves, deletion));
+                                    let moves = vec!((pos, ((letter as i32 + dir) as usize, (number as i32 + side_const) as usize)));
+                                    let deletion = Some(((letter as i32 + dir) as usize, number));
+                                    move_vector.push(Move::new(moves, deletion));
                                 }
                             }
                         }
@@ -572,6 +595,38 @@ impl ChessBoard {
         move_vector
     }
 
+    fn generate_knight_moves(board: &ChessBoard, piece: &ChessPiece, pos: Pos) -> Vec<Move>{
+        let (letter, number) = pos;
+        let mut move_vector = Vec::new();
+
+        // Clockwise starting from up-right
+        let directions = [(1, 2), (2, 1), (2, -1), (1, -2), (-1, -2), (-2, -1), (-2, 1), (-1, 2)];
+
+        for dir in directions {
+        let (letter_const, number_const) = dir;
+            let new_letter = letter as i32 + letter_const;
+            let new_number = number as i32 + number_const;
+            if let Ok(tile) = board.get_piece(new_letter, new_number) {
+                match tile {
+                    Some(other_piece) => {
+                        if other_piece.color != piece.color {
+                            let moves = vec!((pos, (new_letter as usize, new_number as usize)));
+                            let deletion = Some((new_letter as usize, new_number as usize));
+                            move_vector.push(Move::new(moves, deletion));
+                        }
+                    },
+                    None => {
+                        let moves = vec!((pos, (new_letter as usize, new_number as usize)));
+                            let deletion = None;
+                            move_vector.push(Move::new(moves, deletion));
+                    }
+                }
+            }
+        }
+
+        move_vector
+    }
+
     fn generate_bishop_moves(board: &ChessBoard, piece: &ChessPiece, pos: Pos) -> Vec<Move> {
         let (letter, number) = pos;
         let mut move_vector = Vec::new();
@@ -603,124 +658,6 @@ impl ChessBoard {
                         }
                     },
                     Err(_) => break
-                }
-            }
-        }
-
-        move_vector
-
-
-
-        // // Top-right
-        // for i in 1..8 {
-        //     if letter + i < 8 && number + i < 8 {
-        //         match &board.board[letter + i][number + i] {
-        //             None => {
-        //                 let moves = vec!((pos, (letter + i, number + i)));
-        //                 let deletion = None;
-        //                 move_vector.push(Move::new(moves, deletion));
-        //             },
-        //             Some(other_piece) => {
-        //                 if piece.color != other_piece.color {
-        //                     let moves = vec!((pos, (letter + i, number + i)));
-        //                     let deletion = Some((letter + i, number + i));
-        //                     move_vector.push(Move::new(moves, deletion));
-        //                     break;
-        //                 }
-        //             }
-        //         }
-        //     }
-        // }
-
-        // // Bottom-left
-        // for i in 1..8 {
-        //     if letter >= i && number >= i {
-        //         match &board.board[letter - i][number - i] {
-        //             None => {
-        //                 let moves = vec!((pos, (letter - i, number - i)));
-        //                 let deletion = None;
-        //                 move_vector.push(Move::new(moves, deletion));
-        //             },
-        //             Some(other_piece) => {
-        //                 if piece.color != other_piece.color {
-        //                     let moves = vec!((pos, (letter - i, number - i)));
-        //                     let deletion = Some((letter - i, number - i));
-        //                     move_vector.push(Move::new(moves, deletion));
-        //                     break;
-        //                 }
-        //             }
-        //         }
-        //     }
-        // }
-
-        // // Top-left
-        // for i in 1..8 {
-        //     if letter >= i && number + i < 8 {
-        //         match &board.board[letter - i][number + i] {
-        //             None => {
-        //                 let moves = vec!((pos, (letter - i, number + i)));
-        //                 let deletion = None;
-        //                 move_vector.push(Move::new(moves, deletion));
-        //             },
-        //             Some(other_piece) => {
-        //                 if piece.color != other_piece.color {
-        //                     let moves = vec!((pos, (letter - i, number + i)));
-        //                     let deletion = Some((letter - i, number + i));
-        //                     move_vector.push(Move::new(moves, deletion));
-        //                     break;
-        //                 }
-        //             }
-        //         }
-        //     }
-        // }
-
-        // // Bottom-right
-        // for i in 1..8 {
-        //     if letter + i < 8 && number >= i {
-        //         match &board.board[letter + i][number - i] {
-        //             None => {
-        //                 let moves = vec!((pos, (letter + i, number - i)));
-        //                 let deletion = None;
-        //                 move_vector.push(Move::new(moves, deletion));
-        //             },
-        //             Some(other_piece) => {
-        //                 if piece.color != other_piece.color {
-        //                     let moves = vec!((pos, (letter + i, number - i)));
-        //                     let deletion = Some((letter + i, number - i));
-        //                     move_vector.push(Move::new(moves, deletion));
-        //                     break;
-        //                 }
-        //             }
-        //         }
-        //     }
-        // }
-    }
-
-    fn generate_knight_moves(board: &ChessBoard, piece: &ChessPiece, pos: Pos) -> Vec<Move>{
-        let (letter, number) = pos;
-        let mut move_vector = Vec::new();
-
-        // Clockwise starting from up-right
-        let directions = [(1, 2), (2, 1), (2, -1), (1, -2), (-1, -2), (-2, -1), (-2, 1), (-1, 2)];
-
-        for dir in directions {
-        let (letter_const, number_const) = dir;
-            let new_letter = letter as i32 + letter_const;
-            let new_number = number as i32 + number_const;
-            if let Ok(tile) = board.get_piece(new_letter, new_number) {
-                match tile {
-                    Some(other_piece) => {
-                        if other_piece.color != piece.color {
-                            let moves = vec!((pos, (new_letter as usize, new_number as usize)));
-                            let deletion = Some((new_letter as usize, new_number as usize));
-                            move_vector.push(Move::new(moves, deletion));
-                        }
-                    },
-                    None => {
-                        let moves = vec!((pos, (new_letter as usize, new_number as usize)));
-                            let deletion = None;
-                            move_vector.push(Move::new(moves, deletion));
-                    }
                 }
             }
         }
@@ -766,7 +703,7 @@ impl ChessBoard {
             }
         }
 
-        let enemy_reach_board = match piece.color {
+        let opponent_reach_board = match piece.color {
             PieceColor::White => board.generate_reachable_tiles_board(PieceColor::Black),
             PieceColor::Black => board.generate_reachable_tiles_board(PieceColor::White)
         }; 
@@ -780,7 +717,7 @@ impl ChessBoard {
                             if let Ok(None) = board.get_piece(2, number as i32) {
                                 if let Ok(None) = board.get_piece(3, number as i32) {
                                     // Check if tiles are threatened
-                                    if !enemy_reach_board[2][number] && !enemy_reach_board[3][number] {
+                                    if !opponent_reach_board[2][number] && !opponent_reach_board[3][number] {
                                         let moves = vec![(pos, (2, number)), ((0, number), (3, number))];
                                         let deletion = None;
                                         move_vector.push(Move::new(moves, deletion));
@@ -801,7 +738,7 @@ impl ChessBoard {
                         if let Ok(None) = board.get_piece(5, number as i32) {
                             if let Ok(None) = board.get_piece(6, number as i32) {
                                 // Check if tiles are threatened
-                                if !enemy_reach_board[5][number] && !enemy_reach_board[6][number] {
+                                if !opponent_reach_board[5][number] && !opponent_reach_board[6][number] {
                                     let moves = vec![(pos, (6, number)), ((7, number), (5, number))];
                                     let deletion = None;
                                     move_vector.push(Move::new(moves, deletion));
@@ -814,5 +751,37 @@ impl ChessBoard {
         }
 
         move_vector
+    }
+
+    // Check if the game has ended for the given player
+    pub fn check_for_game_end(&self, prev_board: Option<&ChessBoard>, turn: PieceColor) -> EndType {
+        let opposite_color = match turn {
+            PieceColor::White => PieceColor::Black,
+            PieceColor::Black => PieceColor::White
+        };
+
+        let move_board = ChessBoard::generate_moveset_board(self, prev_board, turn);
+
+        let mut move_count: usize = 0;
+
+        for i in 0..8 {
+            for j in 0..8 {
+                move_count += move_board[i][j].len();
+            }
+        }
+
+        if move_count == 0 {
+            let reach_board = self.generate_reachable_tiles_board(opposite_color);
+
+            if let Ok((letter, number)) = self.get_king_pos(turn) {
+                if reach_board[letter][number] {
+                    return EndType::Checkmate;
+                } else {
+                    return EndType::Tie;
+                }
+            }
+        }
+
+        return EndType::NoEnd;
     }
 }
