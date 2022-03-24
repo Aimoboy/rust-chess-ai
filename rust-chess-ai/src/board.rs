@@ -717,7 +717,7 @@ impl ChessBoard {
                             if let Ok(None) = board.get_piece(2, number as i32) {
                                 if let Ok(None) = board.get_piece(3, number as i32) {
                                     // Check if tiles are threatened
-                                    if !opponent_reach_board[2][number] && !opponent_reach_board[3][number] {
+                                    if !opponent_reach_board[2][number] && !opponent_reach_board[3][number] && !opponent_reach_board[4][number] {
                                         let moves = vec![(pos, (2, number)), ((0, number), (3, number))];
                                         let deletion = None;
                                         move_vector.push(Move::new(moves, deletion));
@@ -738,7 +738,7 @@ impl ChessBoard {
                         if let Ok(None) = board.get_piece(5, number as i32) {
                             if let Ok(None) = board.get_piece(6, number as i32) {
                                 // Check if tiles are threatened
-                                if !opponent_reach_board[5][number] && !opponent_reach_board[6][number] {
+                                if !opponent_reach_board[4][number] && !opponent_reach_board[5][number] && !opponent_reach_board[6][number] {
                                     let moves = vec![(pos, (6, number)), ((7, number), (5, number))];
                                     let deletion = None;
                                     move_vector.push(Move::new(moves, deletion));

@@ -144,7 +144,6 @@ impl Game {
             for j in 0..vector[i].moves.len() {
                 let (_, to) = vector[i].moves[j];
                 if letter_to == to.0 && number_to == to.1 {
-                    println!("Validated!");
                     return (true, Some(&vector[i]));
                 }
             }

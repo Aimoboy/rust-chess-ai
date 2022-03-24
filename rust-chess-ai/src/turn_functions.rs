@@ -5,7 +5,7 @@ const DEPTH_SEARCH: usize = 4;
 const SEARCH_TIME: usize = 300;
 const NODE_CHILDREN_START_CAPACITY: usize = 50;
 
-const white_pawn_placement_score: [[i32; 8]; 8] = [[0,   5,   5,  0,  5, 10, 50, 0],
+const WHITE_PAWN_PLACEMENT_SCORE: [[i32; 8]; 8] = [[0,   5,   5,  0,  5, 10, 50, 0],
                                                    [0,  10,  -5,  0,  5, 10, 50, 0],
                                                    [0,  10, -10,  0, 10, 20, 50, 0],
                                                    [0, -20,   0, 20, 25, 30, 50, 0],
@@ -14,7 +14,7 @@ const white_pawn_placement_score: [[i32; 8]; 8] = [[0,   5,   5,  0,  5, 10, 50,
                                                    [0,  10,  -5,  0,  5, 10, 50, 0],
                                                    [0,   5,   5,  0,  5, 10, 50, 0]];
 
-const black_pawn_placement_score: [[i32; 8]; 8] = [[0, 50, 10,  5,  0,   5,   5, 0],
+const BLACK_PAWN_PLACEMENT_SCORE: [[i32; 8]; 8] = [[0, 50, 10,  5,  0,   5,   5, 0],
                                                    [0, 50, 10,  5,  0,  -5,  10, 0],
                                                    [0, 50, 20, 10,  0, -10,  10, 0],
                                                    [0, 50, 30, 25, 20,   0, -20, 0],
@@ -23,7 +23,7 @@ const black_pawn_placement_score: [[i32; 8]; 8] = [[0, 50, 10,  5,  0,   5,   5,
                                                    [0, 50, 10,  5,  5,  -5,  10, 0],
                                                    [0, 50, 10,  5,  5,   5,   5, 0]];
 
-const white_rook_placement_score: [[i32; 8]; 8] = [[0, -5, -5, -5, -5, -5,  5, 0],
+const WHITE_ROOK_PLACEMENT_SCORE: [[i32; 8]; 8] = [[0, -5, -5, -5, -5, -5,  5, 0],
                                                    [0,  0,  0,  0,  0,  0, 10, 0],
                                                    [0,  0,  0,  0,  0,  0, 10, 0],
                                                    [5,  0,  0,  0,  0,  0, 10, 0],
@@ -32,7 +32,7 @@ const white_rook_placement_score: [[i32; 8]; 8] = [[0, -5, -5, -5, -5, -5,  5, 0
                                                    [0,  0,  0,  0,  0,  0, 10, 0],
                                                    [0, -5, -5, -5, -5, -5,  5, 0]];
 
-const black_rook_placement_score: [[i32; 8]; 8] = [[0,  5, -5, -5, -5, -5, -5, 0],
+const BLACK_ROOK_PLACEMENT_SCORE: [[i32; 8]; 8] = [[0,  5, -5, -5, -5, -5, -5, 0],
                                                    [0, 10,  0,  0,  0,  0,  0, 0],
                                                    [0, 10,  0,  0,  0,  0,  0, 0],
                                                    [0, 10,  0,  0,  0,  0,  0, 5],
@@ -41,7 +41,7 @@ const black_rook_placement_score: [[i32; 8]; 8] = [[0,  5, -5, -5, -5, -5, -5, 0
                                                    [0, 10,  0,  0,  0,  0,  0, 0],
                                                    [0,  5, -5, -5, -5, -5, -5, 0]];
 
-const white_knight_placement_score: [[i32; 8]; 8] = [[-50, -40, -30, -30, -30, -30, -40, -50],
+const WHITE_KNIGHT_PLACEMENT_SCORE: [[i32; 8]; 8] = [[-50, -40, -30, -30, -30, -30, -40, -50],
                                                      [-40, -20,   5,   0,   5,   0, -20, -40],
                                                      [-30,   0,  10,  15,  15,  10,   0, -30],
                                                      [-30,   5,  15,  20,  20,  15,   0, -30],
@@ -50,7 +50,7 @@ const white_knight_placement_score: [[i32; 8]; 8] = [[-50, -40, -30, -30, -30, -
                                                      [-40, -20,   5,   0,   5,   0, -20, -40],
                                                      [-50, -40, -30, -30, -30, -30, -40, -50]];
 
-const black_knight_placement_score: [[i32; 8]; 8] = [[-50, -40, -30, -30, -30, -30, -40, -50],
+const BLACK_KNIGHT_PLACEMENT_SCORE: [[i32; 8]; 8] = [[-50, -40, -30, -30, -30, -30, -40, -50],
                                                      [-40, -20,   0,   5,   0,   5, -20, -40],
                                                      [-30,   0,  10,  15,  15,  10,   0, -30],
                                                      [-30,   0,  15,  20,  20,  15,   5, -30],
@@ -59,7 +59,7 @@ const black_knight_placement_score: [[i32; 8]; 8] = [[-50, -40, -30, -30, -30, -
                                                      [-40, -20,   0,   5,   0,   5, -20, -40],
                                                      [-50, -40, -30, -30, -30, -30, -40, -50]];
 
-const white_bishop_placement_score: [[i32; 8]; 8] = [[-20, -10, -10, -10, -10, -10, -10, -20],
+const WHITE_BISHOP_PLACEMENT_SCORE: [[i32; 8]; 8] = [[-20, -10, -10, -10, -10, -10, -10, -20],
                                                      [-10,   5,  10,   0,   5,   0,   0, -10],
                                                      [-10,   0,  10,  10,   5,   5,   0, -10],
                                                      [-10,   0,  10,  10,  10,  10,   0, -10],
@@ -68,7 +68,7 @@ const white_bishop_placement_score: [[i32; 8]; 8] = [[-20, -10, -10, -10, -10, -
                                                      [-10,   5,  10,   0,   5,   0,   0, -10],
                                                      [-20, -10, -10, -10, -10, -10, -10, -20]];
 
-const black_bishop_placement_score: [[i32; 8]; 8] = [[-20, -10, -10, -10, -10, -10, -10, -20],
+const BLACK_BISHOP_PLACEMENT_SCORE: [[i32; 8]; 8] = [[-20, -10, -10, -10, -10, -10, -10, -20],
                                                      [-10,   0,   0,   5,   0,  10,   5, -10],
                                                      [-10,   0,   5,   5,  10,  10,   0, -10],
                                                      [-10,   0,  10,  10,  10,  10,   0, -10],
@@ -77,7 +77,7 @@ const black_bishop_placement_score: [[i32; 8]; 8] = [[-20, -10, -10, -10, -10, -
                                                      [-10,   0,   0,   5,   0,  10,   5, -10],
                                                      [-20, -10, -10, -10, -10, -10, -10, -20]];
 
-const white_queen_placement_score: [[i32; 8]; 8] = [[-20, -10, -10, 0, -5, -10, -10, -20],
+const WHITE_QUEEN_PLACEMENT_SCORE: [[i32; 8]; 8] = [[-20, -10, -10, 0, -5, -10, -10, -20],
                                                     [-10,   0,   5, 0,  0,   0,   0,  10],
                                                     [-10,   5,   5, 5,  5,   5,   0, -10],
                                                     [ -5,   0,   5, 5,  5,   5,   0,  -5],
@@ -86,7 +86,7 @@ const white_queen_placement_score: [[i32; 8]; 8] = [[-20, -10, -10, 0, -5, -10, 
                                                     [-10,   0,   5, 0,  0,   0,   0,  10],
                                                     [-20, -10, -10, 0, -5, -10, -10, -20]];
 
-const black_queen_placement_score: [[i32; 8]; 8] = [[-20, -10, -10, -5, 0, -10, -10, -20],
+const BLACK_QUEEN_PLACEMENT_SCORE: [[i32; 8]; 8] = [[-20, -10, -10, -5, 0, -10, -10, -20],
                                                     [ 10,   0,   0,  0, 0,   5,   0, -10],
                                                     [-10,   0,   5,  5, 5,   5,   5, -10],
                                                     [ -5,   0,   5,  5, 5,   5,   0,  -5],
@@ -95,7 +95,7 @@ const black_queen_placement_score: [[i32; 8]; 8] = [[-20, -10, -10, -5, 0, -10, 
                                                     [ 10,   0,   0,  0, 0,   0,   0, -10],
                                                     [-20, -10, -10, -5, 0, -10, -10, -20]];
 
-const white_king_early_placement_score: [[i32; 8]; 8] = [[20, 20, -10, -20, -30, -30, -30, -30],
+const WHITE_KING_EARLY_PLACEMENT_SCORE: [[i32; 8]; 8] = [[20, 20, -10, -20, -30, -30, -30, -30],
                                                          [30, 20, -20, -30, -40, -40, -40, -40],
                                                          [10,  0, -20, -30, -40, -40, -40, -40],
                                                          [ 0,  0, -20, -40, -50, -50, -50, -50],
@@ -104,7 +104,7 @@ const white_king_early_placement_score: [[i32; 8]; 8] = [[20, 20, -10, -20, -30,
                                                          [30, 20, -20, -30, -40, -40, -40, -40],
                                                          [20, 20, -10, -20, -30, -30, -30, -30]];
 
-const black_king_early_placement_score: [[i32; 8]; 8] = [[-30, -30, -30, -30, -20, -10, 20, 20],
+const BLACK_KING_EARLY_PLACEMENT_SCORE: [[i32; 8]; 8] = [[-30, -30, -30, -30, -20, -10, 20, 20],
                                                          [-40, -40, -40, -40, -30, -20,  0, 10],
                                                          [-40, -40, -40, -40, -30, -20,  0, 10],
                                                          [-50, -50, -50, -50, -40, -20,  0,  0],
@@ -113,7 +113,7 @@ const black_king_early_placement_score: [[i32; 8]; 8] = [[-30, -30, -30, -30, -2
                                                          [-40, -40, -40, -40, -30, -20,  0, 10],
                                                          [-30, -30, -30, -30, -20, -10, 20, 20]];
 
-const white_king_late_placement_score: [[i32; 8]; 8] = [[-50, -30, -30, -30, -30, -30, -30, -50],
+const WHITE_KING_LATE_PLACEMENT_SCORE: [[i32; 8]; 8] = [[-50, -30, -30, -30, -30, -30, -30, -50],
                                                         [-30, -30, -10, -10, -10, -10, -20, -40],
                                                         [-30,   0,  20,  30,  30,  20, -10, -30],
                                                         [-30,   0,  30,  40,  40,  30,   0, -20],
@@ -122,7 +122,7 @@ const white_king_late_placement_score: [[i32; 8]; 8] = [[-50, -30, -30, -30, -30
                                                         [-30, -30, -10, -10, -10, -10, -20, -40],
                                                         [-50, -50, -50, -50, -40, -20,   0,   0]];
 
-const black_king_late_placement_score: [[i32; 8]; 8] = [[-50, -30, -30, -30, -30, -30, -30, -50],
+const BLACK_KING_LATE_PLACEMENT_SCORE: [[i32; 8]; 8] = [[-50, -30, -30, -30, -30, -30, -30, -50],
                                                         [-40, -20, -10, -10, -10, -10, -30, -30],
                                                         [-30, -10,  20,  30,  30,  20,   0, -30],
                                                         [-20,   0,  30,  40,  40,  30,   0, -30],
@@ -213,13 +213,14 @@ pub fn alpha_beta_pruning_ai(board: &ChessBoard, turn: PieceColor) -> String {
 
     println!("{}", board.board_ascii(true));
     println!("Generating move tree with depth {} using max {} seconds", DEPTH_SEARCH, SEARCH_TIME);
-    let start_calculate = std::time::Instant::now();
+    let start = std::time::Instant::now();
     let tree = generate_board_tree(board, turn);
     let maxi_player = if turn == PieceColor::White { true } else { false };
-    println!("Finished generating the tree, starting alpha beta pruning");
-    let ((letter_from, number_from), (letter_to, number_to)) = alpha_beta_pruning(&tree, None, maxi_player, <i32>::min_value(), <i32>::max_value(), simple_board_evaulation_with_position).1.unwrap().moves[0];
+    println!("Finished generating the tree in {} seconds (nodes: {}, leaves: {}, height: {}), starting search", start.elapsed().as_secs(), tree.count_nodes(), tree.count_leaves(), tree.get_height());
+    let start = std::time::Instant::now();
+    let ((letter_from, number_from), (letter_to, number_to)) = alpha_beta_pruning(&tree, None, maxi_player, <i32>::min_value(), <i32>::max_value(), 0, simple_board_evaulation_with_position).1.unwrap().moves[0];
     let mov_str = format!("{}{} {}{} \n", get_letter(letter_from), get_number(number_from), get_letter(letter_to), get_number(number_to));
-    println!("Finished in {} seconds, making the following move: {}", start_calculate.elapsed().as_secs(), mov_str);
+    println!("Finished searching in {} seconds, making the following move: {}", start.elapsed().as_secs(), mov_str);
     mov_str
 }
 
@@ -268,14 +269,14 @@ fn mini_max(node: &Node, prev_board: Option<&ChessBoard>, max: bool, evaluate: f
     }
 }
 
-fn alpha_beta_pruning(node: &Node, prev_board: Option<&ChessBoard>, max: bool, alpha: i32, beta: i32, evaluate: fn (board: &ChessBoard, prev_board: Option<&ChessBoard>) -> i32) -> (i32, Option<Move>) {
+fn alpha_beta_pruning(node: &Node, prev_board: Option<&ChessBoard>, max: bool, alpha: i32, beta: i32, depth: i32, evaluate: fn (board: &ChessBoard, prev_board: Option<&ChessBoard>, depth: i32) -> i32) -> (i32, Option<Move>) {
     let return_mov = match node.mov.as_ref() {
         Some(mov) => Some(mov.clone()),
         None => None
     };
 
     if node.is_leaf() {
-        let eval = evaluate(&node.data, prev_board);
+        let eval = evaluate(&node.data, prev_board, depth);
         return (eval, return_mov);
     }
 
@@ -285,7 +286,7 @@ fn alpha_beta_pruning(node: &Node, prev_board: Option<&ChessBoard>, max: bool, a
         let mut mov = &None;
         let mut new_alpha = alpha;
         for child in &node.children {
-            let eval = alpha_beta_pruning(child, Some(&node.data), false, new_alpha, beta, evaluate).0;
+            let eval = alpha_beta_pruning(child, Some(&node.data), false, new_alpha, beta, depth + 1, evaluate).0;
             if eval > max_eval {
                 max_eval = eval;
                 mov = &child.mov;
@@ -307,7 +308,7 @@ fn alpha_beta_pruning(node: &Node, prev_board: Option<&ChessBoard>, max: bool, a
         let mut mov = &None;
         let mut new_beta = beta;
         for child in &node.children {
-            let eval = alpha_beta_pruning(child, Some(&node.data), true, alpha, new_beta, evaluate).0;
+            let eval = alpha_beta_pruning(child, Some(&node.data), true, alpha, new_beta, depth + 1, evaluate).0;
             if eval < min_eval {
                 min_eval = eval;
                 mov = &child.mov;
@@ -387,6 +388,16 @@ impl Node {
     }
 
     pub fn count_nodes(&self) -> usize {
+        let mut count = 0;
+
+        for node in &self.children {
+            count += node.count_nodes();
+        }
+
+        count + 1
+    }
+
+    pub fn count_leaves(&self) -> usize {
         if self.is_leaf() {
             return 1;
         }
@@ -394,7 +405,7 @@ impl Node {
         let mut count = 0;
 
         for node in &self.children {
-            count += node.count_nodes();
+            count += node.count_leaves();
         }
 
         count
@@ -460,17 +471,17 @@ fn simple_board_evaulation(board: &ChessBoard, prev_board: Option<&ChessBoard>) 
     value
 }
 
-fn simple_board_evaulation_with_position(board: &ChessBoard, prev_board: Option<&ChessBoard>) -> i32 {
+fn simple_board_evaulation_with_position(board: &ChessBoard, prev_board: Option<&ChessBoard>, depth: i32) -> i32 {
     match &board.check_for_game_end(prev_board, PieceColor::White) {
         EndType::Checkmate => {
-            return <i32>::min_value() + 1;
+            return <i32>::min_value() / 2 + depth;
         },
         _ => ()
     }
 
     match &board.check_for_game_end(prev_board, PieceColor::Black) {
         EndType::Checkmate => {
-            return <i32>::max_value() - 1;
+            return <i32>::max_value() / 2 - depth;
         },
         _ => ()
     }
@@ -489,20 +500,20 @@ fn simple_board_evaulation_with_position(board: &ChessBoard, prev_board: Option<
     let get_piece_position_value = |piece: &ChessPiece, letter: usize, number: usize| {
         match piece.color {
             PieceColor::White => match piece.typ {
-                                    PieceType::Pawn => white_pawn_placement_score[letter][number],
-                                    PieceType::Rook => white_rook_placement_score[letter][number],
-                                    PieceType::Bishop => white_bishop_placement_score[letter][number],
-                                    PieceType::Knight => white_knight_placement_score[letter][number],
-                                    PieceType::Queen => white_queen_placement_score[letter][number],
-                                    PieceType::King => white_king_early_placement_score[letter][number]
+                                    PieceType::Pawn => WHITE_PAWN_PLACEMENT_SCORE[letter][number],
+                                    PieceType::Rook => WHITE_ROOK_PLACEMENT_SCORE[letter][number],
+                                    PieceType::Bishop => WHITE_BISHOP_PLACEMENT_SCORE[letter][number],
+                                    PieceType::Knight => WHITE_KNIGHT_PLACEMENT_SCORE[letter][number],
+                                    PieceType::Queen => WHITE_QUEEN_PLACEMENT_SCORE[letter][number],
+                                    PieceType::King => WHITE_KING_EARLY_PLACEMENT_SCORE[letter][number]
                                 },
             PieceColor::Black => match piece.typ {
-                                    PieceType::Pawn => black_pawn_placement_score[letter][number],
-                                    PieceType::Rook => black_rook_placement_score[letter][number],
-                                    PieceType::Bishop => black_bishop_placement_score[letter][number],
-                                    PieceType::Knight => black_knight_placement_score[letter][number],
-                                    PieceType::Queen => black_queen_placement_score[letter][number],
-                                    PieceType::King => black_king_early_placement_score[letter][number]
+                                    PieceType::Pawn => BLACK_PAWN_PLACEMENT_SCORE[letter][number],
+                                    PieceType::Rook => BLACK_ROOK_PLACEMENT_SCORE[letter][number],
+                                    PieceType::Bishop => BLACK_BISHOP_PLACEMENT_SCORE[letter][number],
+                                    PieceType::Knight => BLACK_KNIGHT_PLACEMENT_SCORE[letter][number],
+                                    PieceType::Queen => BLACK_QUEEN_PLACEMENT_SCORE[letter][number],
+                                    PieceType::King => BLACK_KING_EARLY_PLACEMENT_SCORE[letter][number]
                                 }
         }
     };
