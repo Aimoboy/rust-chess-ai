@@ -36,7 +36,7 @@ pub enum EndType {
 //     H = 7
 // }
 
-pub enum GetPieceError {
+pub enum ChessError {
     OutsideBounds = 0,
     NoKing = 1
 }
@@ -48,7 +48,7 @@ pub struct Move {
 }
 
 impl Move {
-    fn new(moves: Vec<(Pos, Pos)>, deletion: Option<Pos>) -> Self{
+    pub fn new(moves: Vec<(Pos, Pos)>, deletion: Option<Pos>) -> Self{
         Self {
             moves,
             deletion
@@ -122,15 +122,27 @@ pub struct ChessBoard {
 }
 
 impl ChessBoard {
-    pub fn get_piece(&self, letter: i32, number: i32) -> Result<Option<&ChessPiece>, GetPieceError> {
+    pub fn get_piece(&self, letter: i32, number: i32) -> Result<Option<&ChessPiece>, ChessError> {
         if letter < 0 || letter >= 8 || number < 0 || number >= 8 {
-            return Err(GetPieceError::OutsideBounds);
+            return Err(ChessError::OutsideBounds);
         }
 
         let safe_letter = letter as usize;
         let safe_number = number as usize;
 
         Ok(self.board[safe_letter][safe_number].as_ref())
+    }
+
+    pub fn set_piece(&mut self, letter: i32, number: i32, typ: PieceType, color: PieceColor) -> Result<bool, ChessError> {
+        if letter < 0 || letter >= 8 || number < 0 || number >= 8 {
+            return Err(ChessError::OutsideBounds);
+        }
+
+        let safe_letter = letter as usize;
+        let safe_number = number as usize;
+
+        self.board[safe_letter][safe_number] = Some(ChessPiece::new(typ, color));
+        Ok(true)
     }
 
     fn blank_board() -> [[Option<ChessPiece>; 8]; 8] {
@@ -284,13 +296,13 @@ impl ChessBoard {
         };
 
         // Left attack
-        if let Ok(_) = board.get_piece(letter as i32 + side_const, number as i32 - 1) {
-            reach_board[(letter as i32 + side_const) as usize][number - 1] = true;
+        if let Ok(_) = board.get_piece(letter as i32 - 1, number as i32 + side_const) {
+            reach_board[letter - 1][(number as i32 + side_const) as usize] = true;
         }
 
         // Right attack
-        if let Ok(_) = board.get_piece(letter as i32 + side_const, number as i32 + 1) {
-            reach_board[(letter as i32 + side_const) as usize][number + 1] = true;
+        if let Ok(_) = board.get_piece(letter as i32 + 1, number as i32 + side_const) {
+            reach_board[letter + 1][(number as i32 + side_const) as usize] = true;
         }
     }
 
@@ -406,7 +418,7 @@ impl ChessBoard {
         new_board
     }
 
-    pub fn generate_moveset_board(board: &ChessBoard, previous_board: Option<&ChessBoard>, turn: PieceColor) -> [[Vec<Move>; 8]; 8] {
+    pub fn generate_moveset_board(&self, previous_board: Option<&ChessBoard>, turn: PieceColor) -> [[Vec<Move>; 8]; 8] {
         const START_CAPACITY: usize = 15;
         let mut move_board = [[Vec::with_capacity(START_CAPACITY), Vec::with_capacity(START_CAPACITY), Vec::with_capacity(START_CAPACITY), Vec::with_capacity(START_CAPACITY), Vec::with_capacity(START_CAPACITY), Vec::with_capacity(START_CAPACITY), Vec::with_capacity(START_CAPACITY), Vec::with_capacity(START_CAPACITY)],
                               [Vec::with_capacity(START_CAPACITY), Vec::with_capacity(START_CAPACITY), Vec::with_capacity(START_CAPACITY), Vec::with_capacity(START_CAPACITY), Vec::with_capacity(START_CAPACITY), Vec::with_capacity(START_CAPACITY), Vec::with_capacity(START_CAPACITY), Vec::with_capacity(START_CAPACITY)],
@@ -419,9 +431,9 @@ impl ChessBoard {
         
         for i in 0..8 {
             for j in 0..8 {
-                if let Some(piece) = &board.board[i][j] {
+                if let Some(piece) = &self.board[i][j] {
                     if piece.color == turn {
-                        Self::generate_moveset(board, previous_board, piece, &mut move_board[i][j], (i, j));
+                        Self::generate_moveset(self, previous_board, piece, &mut move_board[i][j], (i, j));
                     }
                 }
             }
@@ -430,7 +442,7 @@ impl ChessBoard {
         move_board
     }
 
-    pub fn get_king_pos(&self, color: PieceColor) -> Result<Pos, GetPieceError> {
+    pub fn get_king_pos(&self, color: PieceColor) -> Result<Pos, ChessError> {
         for i in 0..8 {
             for j in 0..8 {
                 if let Some(piece) = &self.board[i][j] {
@@ -441,7 +453,7 @@ impl ChessBoard {
             }
         }
 
-        Err(GetPieceError::NoKing)
+        Err(ChessError::NoKing)
     }
 
     fn check_move(&self, mov: &Move, color: PieceColor) -> bool {
@@ -782,6 +794,44 @@ impl ChessBoard {
             }
         }
 
-        return EndType::NoEnd;
+        EndType::NoEnd
+    }
+
+    pub fn check_repetition(&self, board_history: &Vec<ChessBoard>) -> EndType {
+        let mut count = 0;
+
+        for b in board_history {
+            if self.check_board_equality(b) {
+                count += 1;
+            }
+        }
+
+        if count >= 3 {
+            return EndType::Tie;
+        }
+
+        EndType::NoEnd
+    }
+
+    fn check_board_equality(&self, other: &ChessBoard) -> bool {
+        for i in 0..8 {
+            for j in 0..8 {
+                if self.board[i][j].is_none() && !other.board[i][j].is_none() {
+                    return false;
+                }
+
+                if let Some(piece) = &self.board[i][j] {
+                    if let Some(other_piece) = &other.board[i][j] {
+                        if piece.typ != other_piece.typ || piece.color != other_piece.color {
+                            return false;
+                        }
+                    } else {
+                        return false;
+                    }
+                }
+            }
+        }
+
+        true
     }
 }

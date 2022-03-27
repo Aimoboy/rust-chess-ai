@@ -18,7 +18,7 @@ impl Game {
         }
     }
 
-    pub fn run(mut game: Game, white_turn_choice: fn (board: &ChessBoard, turn: PieceColor) -> String, black_turn_choice: fn (board: &ChessBoard, turn: PieceColor) -> String) {
+    pub fn run(mut game: Game, white_turn_choice: fn (board: &ChessBoard, prev_board: Option<&ChessBoard>, board_history: &Vec<ChessBoard>, turn: PieceColor, moves_ahead: i32) -> String, black_turn_choice: fn (board: &ChessBoard, prev_board: Option<&ChessBoard>, board_history: &Vec<ChessBoard>, turn: PieceColor, moves_ahead: i32) -> String, white_moves_ahead: i32, black_moves_ahead: i32) {
         // print!("\x1B[2J\x1B[1;1H");
         let win_type = loop {
             let opponent_color = match game.turn {
@@ -31,8 +31,8 @@ impl Game {
             let move_board = ChessBoard::generate_moveset_board(current_board, prev_board, game.turn);
 
             let res: String = match &game.turn {
-                PieceColor::White => white_turn_choice(current_board, game.turn),
-                PieceColor::Black => black_turn_choice(current_board, game.turn)
+                PieceColor::White => white_turn_choice(current_board, prev_board, &game.board_history, game.turn, white_moves_ahead),
+                PieceColor::Black => black_turn_choice(current_board, prev_board, &game.board_history, game.turn, black_moves_ahead)
             };
 
             if !Self::validate_move_string(&res) {
@@ -52,6 +52,14 @@ impl Game {
             let new_board = current_board.do_move(mov.unwrap());
 
             match &new_board.check_for_game_end(Some(current_board), opponent_color) {
+                EndType::NoEnd => (),
+                typ => {
+                    game.board_history.push(new_board);
+                    break typ.clone()
+                }
+            }
+
+            match &new_board.check_repetition(&game.board_history) {
                 EndType::NoEnd => (),
                 typ => {
                     game.board_history.push(new_board);
