@@ -1,8 +1,9 @@
 use super::board::*;
+use super::piece_color::*;
 use std::io::{self, Write};
 use std::thread;
 
-const DEPTH_SEARCH: usize = 2;
+const DEPTH_SEARCH: usize = 5;
 const SEARCH_TIME: usize = 300;
 const NODE_CHILDREN_START_CAPACITY: usize = 50;
 
@@ -133,7 +134,7 @@ const BLACK_KING_LATE_PLACEMENT_SCORE: [[i32; 8]; 8] = [[-50, -30, -30, -30, -30
                                                         [-50, -30, -30, -30, -30, -30, -30, -50]];
 
 
-pub fn player_move(board: &ChessBoard, prev_board: Option<&ChessBoard>, turn: PieceColor, moves_ahead: i32) -> String {
+pub fn player_move(board: &ChessBoard, previous_board: Option<&ChessBoard>, board_history: &Vec<ChessBoard>, turn: PieceColor, moves_ahead: i32) -> String {
     let color_str = match turn {
         PieceColor::White => "White",
         PieceColor::Black => "Black"

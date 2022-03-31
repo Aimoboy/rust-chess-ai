@@ -1,4 +1,5 @@
 use super::board::*;
+use super::piece_color::*;
 
 const BOARD_HISTORY_START_CAPACITY: usize = 100;
 

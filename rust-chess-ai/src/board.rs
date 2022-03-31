@@ -1,3 +1,5 @@
+use super::piece_color::*;
+
 pub type Pos = (usize, usize);
 type ReachBoard = [[bool; 8]; 8];
 
@@ -9,12 +11,6 @@ pub enum PieceType {
     Bishop = 3,
     Queen = 4,
     King = 5
-}
-
-#[derive(Debug, PartialEq, Clone, Copy)]
-pub enum PieceColor {
-    White = 0,
-    Black = 1
 }
 
 #[derive(PartialEq, Clone, Copy)]
