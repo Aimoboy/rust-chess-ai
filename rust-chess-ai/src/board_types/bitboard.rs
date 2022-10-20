@@ -1,10 +1,11 @@
-use super::piece_color::*;
+use super::board::*;
+use super::super::enums::{piece_color::*, end_type::*};
 use std::collections::HashMap;
 
-type BitBoard = [u64; 12];
-type BitBoardMove = (((u64, u64), (u64, u64)), BitBoard);
+pub type BitBoard = [u64; 12];
+pub type BitBoardMove = (((u64, u64), (u64, u64)), BitBoard);
 
-enum PieceNum {
+pub enum PieceNum {
     WhitePawn = 0,
     WhiteRook = 1,
     WhiteKnight = 2,
@@ -42,13 +43,6 @@ impl Constants {
             bishop_reach: generate_bishop_reach(),
             king_reach: generate_king_reach()
         }
-    }
-}
-
-fn get_opposite_color(color: PieceColor) -> PieceColor{
-    match color {
-        PieceColor::White => PieceColor::Black,
-        PieceColor::Black => PieceColor::White
     }
 }
 
@@ -598,7 +592,7 @@ pub fn get_reach_board(board: &BitBoard, color: PieceColor, constants: &Constant
 }
 
 fn is_in_check(board: &BitBoard, color: PieceColor, constants: &Constants) -> bool {
-    let opposite_reach_board = get_reach_board(&board, get_opposite_color(color), &constants);
+    let opposite_reach_board = get_reach_board(&board, color.opposite_color(), &constants);
     match color {
         PieceColor::White => {
             let king_num = board[PieceNum::WhiteKing as usize];
@@ -614,7 +608,7 @@ fn is_in_check(board: &BitBoard, color: PieceColor, constants: &Constants) -> bo
 pub fn generate_possible_moves(board: &BitBoard, prev_board: Option<&BitBoard>, color: PieceColor, constants: &Constants) -> Vec<BitBoardMove> {
     let mut possible_moves = Vec::new();
 
-    let opposite_color = get_opposite_color(color);
+    let opposite_color = color.opposite_color();
     let occupied_board = get_occupied_board(&board);
     let own_pieces = get_full_color_board(&board, color);
     let opposite_pieces = get_full_color_board(&board, opposite_color);
@@ -1063,4 +1057,84 @@ pub fn get_bitboard_ascii(board: &BitBoard) -> String {
     string.push_str("    A    B    C    D    E    F    G    H");
 
     string
+}
+
+pub fn board_to_bitboard(board: &ChessBoard) -> BitBoard{
+    let mut res = [0; 12];
+    for i in 0..8 {
+        for j in 0..8 {
+            if let Ok(Some(piece)) = board.get_piece(i, j) {
+                match piece.color {
+                    PieceColor::White => {
+                        match piece.typ {
+                            PieceType::Pawn => {
+                                res[0] += 1 << pos_to_num(i as u64, j as u64);
+                            },
+                            PieceType::Rook => {
+                                res[1] += 1 << pos_to_num(i as u64, j as u64);
+                            },
+                            PieceType::Knight => {
+                                res[2] += 1 << pos_to_num(i as u64, j as u64);
+                            },
+                            PieceType::Bishop => {
+                                res[3] += 1 << pos_to_num(i as u64, j as u64);
+                            },
+                            PieceType::Queen => {
+                                res[4] += 1 << pos_to_num(i as u64, j as u64);
+                            },
+                            PieceType::King => {
+                                res[5] += 1 << pos_to_num(i as u64, j as u64);
+                            }
+                        }
+                    },
+                    PieceColor::Black => {
+                        match piece.typ {
+                            PieceType::Pawn => {
+                                res[6] += 1 << pos_to_num(i as u64, j as u64);
+                            },
+                            PieceType::Rook => {
+                                res[7] += 1 << pos_to_num(i as u64, j as u64);
+                            },
+                            PieceType::Knight => {
+                                res[8] += 1 << pos_to_num(i as u64, j as u64);
+                            },
+                            PieceType::Bishop => {
+                                res[9] += 1 << pos_to_num(i as u64, j as u64);
+                            },
+                            PieceType::Queen => {
+                                res[10] += 1 << pos_to_num(i as u64, j as u64);
+                            },
+                            PieceType::King => {
+                                res[11] += 1 << pos_to_num(i as u64, j as u64);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    res
+}
+
+pub fn bitboard_check_game_end(bb: &BitBoard, prev_board: Option<&BitBoard>, turn: PieceColor, constants: &Constants) -> EndType {
+    let opponent_color = turn.opposite_color();
+    let possible_moves = generate_possible_moves(bb, prev_board, turn, &constants);
+
+    if possible_moves.len() == 0 {
+        let opponent_reach = get_reach_board(&bb, opponent_color, &constants);
+
+        let checkmate = match turn {
+            PieceColor::White => opponent_reach & bb[5] == bb[5],
+            PieceColor::Black => opponent_reach & bb[11] == bb[11]
+        };
+
+        if checkmate {
+            return EndType::Checkmate;
+        } else {
+            return EndType::Tie;
+        }
+    }
+
+    EndType::NoEnd
 }

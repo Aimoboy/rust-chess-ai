@@ -1,4 +1,4 @@
-use super::piece_color::*;
+use super::super::enums::{piece_color::*, end_type::*};
 
 pub type Pos = (usize, usize);
 type ReachBoard = [[bool; 8]; 8];
@@ -11,13 +11,6 @@ pub enum PieceType {
     Bishop = 3,
     Queen = 4,
     King = 5
-}
-
-#[derive(PartialEq, Clone, Copy)]
-pub enum EndType {
-    NoEnd = 0,
-    Tie = 1,
-    Checkmate = 2
 }
 
 // #[derive(Debug, PartialEq, Clone, Copy)]
@@ -68,6 +61,7 @@ impl ChessPiece {
         }
     }
 
+    // Maybe this and the next function should just use self?
     fn piece_to_char(piece: &ChessPiece) -> char {
         match piece.color {
             PieceColor::White => match piece.typ {
@@ -111,6 +105,72 @@ impl ChessPiece {
     }
 }
 
+pub struct MovesetBoard {
+    pub board: [[Vec<Move>; 8]; 8]
+}
+
+impl MovesetBoard {
+    pub fn new(board: [[Vec<Move>; 8]; 8]) -> Self {
+        Self {
+            board
+        }
+    }
+
+    pub fn count_moves(&self) -> usize {
+        let mut move_count = 0;
+
+        for i in 0..8 {
+            for j in 0..8 {
+                move_count += &self.board[i][j].len();
+            }
+        }
+
+        return move_count;
+    }
+
+    pub fn iter(&self) -> MovesetBoardIter {
+        MovesetBoardIter::new(self)
+    }
+}
+
+pub struct MovesetBoardIter<'a> {
+    moves: Vec<&'a Move>,
+    pos: usize
+}
+
+impl<'a> MovesetBoardIter<'a> {
+    pub fn new(board: &'a MovesetBoard) -> Self {
+        let mut moves = Vec::new();
+
+        for i in 0..8 {
+            for j in 0..8 {
+                for mov in &board.board[i][j] {
+                    moves.push(mov);
+                }
+            }
+        }
+
+        Self {
+            moves,
+            pos: 0
+        }
+    }
+}
+
+impl<'a> Iterator for MovesetBoardIter<'a> {
+    type Item = &'a Move;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.pos == self.moves.len() {
+            return None;
+        }
+
+        let mov = self.moves[self.pos];
+        self.pos += 1;
+        return Some(mov);
+    }
+}
+
 // Letter is first index then number
 #[derive(Debug, Clone)]
 pub struct ChessBoard {
@@ -138,6 +198,7 @@ impl ChessBoard {
         let safe_number = number as usize;
 
         self.board[safe_letter][safe_number] = Some(ChessPiece::new(typ, color));
+
         Ok(true)
     }
 
@@ -390,8 +451,8 @@ impl ChessBoard {
     pub fn do_move(&self, mov: &Move) -> ChessBoard {
         let mut new_board = self.clone();
 
-        let moves = &mov.moves;
-        let deletion = &mov.deletion;
+        let moves: &Vec<(Pos, Pos)> = &mov.moves;
+        let deletion: &Option<Pos> = &mov.deletion;
 
         if let Some((letter, number)) = deletion {
             new_board.board[*letter][*number] = None;
@@ -399,6 +460,7 @@ impl ChessBoard {
 
         for mov in moves {
             let ((letter_from, number_from), (letter_to, number_to)) = mov;
+            // Remove clone?
             if let Some(mut new_piece) = new_board.board[*letter_from][*number_from].clone() {
                 new_piece.moved = true;
 
@@ -414,7 +476,7 @@ impl ChessBoard {
         new_board
     }
 
-    pub fn generate_moveset_board(&self, previous_board: Option<&ChessBoard>, turn: PieceColor) -> [[Vec<Move>; 8]; 8] {
+    pub fn generate_moveset_board(&self, previous_board: Option<&ChessBoard>, turn: PieceColor) -> MovesetBoard {
         const START_CAPACITY: usize = 15;
         let mut move_board = [[Vec::with_capacity(START_CAPACITY), Vec::with_capacity(START_CAPACITY), Vec::with_capacity(START_CAPACITY), Vec::with_capacity(START_CAPACITY), Vec::with_capacity(START_CAPACITY), Vec::with_capacity(START_CAPACITY), Vec::with_capacity(START_CAPACITY), Vec::with_capacity(START_CAPACITY)],
                               [Vec::with_capacity(START_CAPACITY), Vec::with_capacity(START_CAPACITY), Vec::with_capacity(START_CAPACITY), Vec::with_capacity(START_CAPACITY), Vec::with_capacity(START_CAPACITY), Vec::with_capacity(START_CAPACITY), Vec::with_capacity(START_CAPACITY), Vec::with_capacity(START_CAPACITY)],
@@ -435,7 +497,7 @@ impl ChessBoard {
             }
         }
 
-        move_board
+        MovesetBoard::new(move_board)
     }
 
     pub fn get_king_pos(&self, color: PieceColor) -> Result<Pos, ChessError> {
@@ -763,23 +825,20 @@ impl ChessBoard {
 
     // Check if the game has ended for the given player
     pub fn check_for_game_end(&self, prev_board: Option<&ChessBoard>, turn: PieceColor) -> EndType {
-        let opposite_color = match turn {
-            PieceColor::White => PieceColor::Black,
-            PieceColor::Black => PieceColor::White
-        };
-
         let move_board = ChessBoard::generate_moveset_board(self, prev_board, turn);
 
-        let mut move_count: usize = 0;
+        // let mut move_count: usize = 0;
 
-        for i in 0..8 {
-            for j in 0..8 {
-                move_count += move_board[i][j].len();
-            }
-        }
+        // for i in 0..8 {
+        //     for j in 0..8 {
+        //         move_count += move_board[i][j].len();
+        //     }
+        // }
+
+        let move_count = move_board.count_moves();
 
         if move_count == 0 {
-            let reach_board = self.generate_reachable_tiles_board(opposite_color);
+            let reach_board = self.generate_reachable_tiles_board(turn.opposite_color());
 
             if let Ok((letter, number)) = self.get_king_pos(turn) {
                 if reach_board[letter][number] {

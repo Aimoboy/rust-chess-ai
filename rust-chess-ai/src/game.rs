@@ -1,5 +1,8 @@
-use super::board::*;
-use super::piece_color::*;
+use crate::board_types::board::MovesetBoard;
+
+use super::{Player};
+use super::board::{ChessBoard, Move, Pos};
+use super::enums::{piece_color::*, end_type::*};
 
 const BOARD_HISTORY_START_CAPACITY: usize = 100;
 
@@ -19,8 +22,12 @@ impl Game {
         }
     }
 
-    pub fn run(mut game: Game, white_turn_choice: fn (board: &ChessBoard, prev_board: Option<&ChessBoard>, board_history: &Vec<ChessBoard>, turn: PieceColor, moves_ahead: i32) -> String, black_turn_choice: fn (board: &ChessBoard, prev_board: Option<&ChessBoard>, board_history: &Vec<ChessBoard>, turn: PieceColor, moves_ahead: i32) -> String, white_moves_ahead: i32, black_moves_ahead: i32) {
-        // print!("\x1B[2J\x1B[1;1H");
+    fn clear_console() {
+        print!("\x1B[2J\x1B[1;1H");
+    }
+
+    pub fn run(mut game: Game, white_player: Player, black_player: Player) {
+        // clear_console();
         let win_type = loop {
             let opponent_color = match game.turn {
                 PieceColor::White => PieceColor::Black,
@@ -32,8 +39,8 @@ impl Game {
             let move_board = ChessBoard::generate_moveset_board(current_board, prev_board, game.turn);
 
             let res: String = match &game.turn {
-                PieceColor::White => white_turn_choice(current_board, prev_board, &game.board_history, game.turn, white_moves_ahead),
-                PieceColor::Black => black_turn_choice(current_board, prev_board, &game.board_history, game.turn, black_moves_ahead)
+                PieceColor::White => (white_player.turn_function)(current_board, prev_board, &game.board_history, game.turn, &white_player),
+                PieceColor::Black => (black_player.turn_function)(current_board, prev_board, &game.board_history, game.turn, &black_player)
             };
 
             if !Self::validate_move_string(&res) {
@@ -92,7 +99,7 @@ impl Game {
 
         let mut characters = move_str.chars();
 
-        if move_str.len() != 7 {
+        if move_str.len() <= 5 {
             return false;
         }
 
@@ -144,10 +151,10 @@ impl Game {
         ((Self::char_to_index(letter_from_char, &valid_letters), Self::char_to_index(number_from_char, &valid_numbers)), (Self::char_to_index(letter_to_char, &valid_letters), Self::char_to_index(number_to_char, &valid_numbers)))
     }
 
-    fn validate_move(m: (Pos, Pos), move_board: &[[Vec<Move>; 8]; 8]) -> (bool, Option<&Move>) {
+    fn validate_move(m: (Pos, Pos), move_board: &MovesetBoard) -> (bool, Option<&Move>) {
         let ((letter_from, number_from), (letter_to, number_to)) = m;
 
-        let vector = &move_board[letter_from][number_from];
+        let vector = &move_board.board[letter_from][number_from];
 
         for i in 0..vector.len() {
             for j in 0..vector[i].moves.len() {

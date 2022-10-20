@@ -1,41 +1,64 @@
-mod board;
-mod bitboard;
+extern crate work_queue;
+extern crate num_cpus;
+
 mod game;
 mod tests;
 mod turn_functions;
-mod piece_color;
 
-use std::collections::HashMap;
+mod board_types {
+    pub mod board;
+    pub mod bitboard;
+}
 
-// player_move
-// alpha_beta_pruning_ai
-// alpha_beta_pruning_ai_tree_generate_with_threads
+mod enums {
+    pub mod piece_color;
+    pub mod end_type;
+    pub mod board_type;
+}
+
+use board_types::board::ChessBoard;
+use game::Game;
+use board_types::board;
+use board_types::bitboard;
+use enums::piece_color::PieceColor;
+use enums::board_type::BoardType;
+use turn_functions::{minimax, player_move, EvaluationFunction, simple_board_evaluation_with_position};
+
+pub struct Player {
+    turn_function: Box<dyn Fn(&ChessBoard, Option<&ChessBoard>, &Vec<ChessBoard>, PieceColor, &Player) -> String>,
+    moves_ahead: i32,
+    board_type: BoardType
+}
+
+impl Player {
+    pub fn human_player() -> Self {
+        Self {
+            turn_function: Box::new(player_move),
+            moves_ahead: 0,
+            board_type: BoardType::Standard
+        }
+    }
+
+    pub fn minimax_bot(moves_ahead: i32, board_type: BoardType, eval_func: EvaluationFunction, alpha_beta_pruning: bool, multi_threading: bool) -> Self {
+        Self {
+            turn_function: {
+                Box::new(move |board: &ChessBoard, previous_board: Option<&ChessBoard>, board_history: &Vec<ChessBoard>, turn: PieceColor, player: &Player| -> String {
+                    minimax(board, previous_board, board_history, turn, player, eval_func, alpha_beta_pruning, multi_threading)
+                })
+            },
+            moves_ahead: moves_ahead,
+            board_type: board_type
+        }
+    }
+}
 
 
 fn main() {
-    // println!("{:?}", bitboard::generate_row_and_column_mask());
-    // println!("{:?}", bitboard::pos_to_num(2, 4));
-    // println!("{:?}", bitboard::num_to_pos(34));
-    // bitboard::print_bitboard(72340172838076926);
-    // let new_game = game::Game::new();
-    // game::Game::run(new_game, turn_functions::player_move, turn_functions::alpha_beta_pruning_ai_tree_generate_with_threads, 0, 5);
-    // let x = [0 as u64; 1048576];
-    // let x: HashMap<u64, u64> = HashMap::with_capacity(1048576);
-    // bitboard::test();
+    let new_game = Game::new();
 
-    let now = std::time::Instant::now();
-    let c = bitboard::Constants::new();
-    println!("{}", now.elapsed().as_millis() as f32 / 1000.);
-    let ascii = bitboard::get_bitboard_ascii(&c.start_board);
-    println!("{}", ascii);
-    println!();
-    let mut new_board = c.start_board;
-    new_board[5] = 0;
-    new_board[5] += 1 << 36;
-    let moves = bitboard::generate_possible_moves(&new_board, None, piece_color::PieceColor::White, &c);
-    for mov in moves {
-        println!("{}", bitboard::get_bitboard_ascii(&mov.1));
-        std::thread::sleep(std::time::Duration::from_millis(500));
-    }
-    // bitboard::print_bitboard(bitboard::get_reach_board(&c.start_board, piece_color::PieceColor::Black, &c));
+    let white_player = Player::human_player();
+
+    let black_player = Player::minimax_bot(6, BoardType::Standard, simple_board_evaluation_with_position, true, true);
+
+    Game::run(new_game, white_player, black_player);
 }
