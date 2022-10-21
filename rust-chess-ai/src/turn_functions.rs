@@ -300,632 +300,130 @@ fn minimax_helper(board: &ChessBoard, previous_board: Option<&ChessBoard>, turn:
     return ret_value;
 }
 
-// #[derive(Debug)]
-// pub enum Tree<T> {
-//     Node(T, Vec<Tree<T>>)
-// }
+// board: &BitBoard, prev_board: Option<&BitBoard>, board_history: &Vec<BitBoard>, depth: i32, constants: &Constants
+pub type BitBoardEvaluationFunction = fn(&BitBoard, Option<&BitBoard>, &Vec<BitBoard>, i32, &Constants) -> i32;
+type BitBoardMove = ((u64, u64), (u64, u64));
 
-// impl<T> Tree<T> {
-//     pub fn count_leaves(&self) -> usize {
-//         match self {
-//             Tree::Node(_, children) => {
-//                 if children.len() == 0 {
-//                     return 1;
-//                 } else {
-//                     let mut sum = 0;
-//                     for child in children {
-//                         sum += child.count_leaves();
-//                     }
-//                     return sum;
-//                 }
-//             }
-//         }
-//     }
-
-//     pub fn count_nodes(&self) -> usize {
-//         match self {
-//             Tree::Node(_, children) => {
-//                 let mut sum = 1;
-//                 for child in children {
-//                     sum += child.count_nodes();
-//                 }
-//                 return sum;
-//             }
-//         }
-//     }
-// }
-
-// // Make generic
-// pub fn generate_minimax_tree(board: &ChessBoard, previous_board: Option<&ChessBoard>, turn: PieceColor, depth: i32, multi_threading: bool) -> Tree<ChessBoard> {
-//     let mut children: Vec<Tree<ChessBoard>> = Vec::new();
-
-//     if depth != 0 {
-//         let move_board = board.generate_moveset_board(previous_board, turn);
-
-//         for i in 0..8 {
-//             for j in 0..8 {
-//                 for mov in &move_board[i][j] {
-//                     let new_board = board.do_move(mov);
-//                     children.push(generate_minimax_tree(&new_board, Some(board), turn.opposite_color(), depth - 1, false));
-//                 }
-//             }
-//         }
-//     }
-
-//     return Tree::Node(board.clone(), children);
-// }
-
-pub fn bitboard_alpha_beta_pruning_multi_threading(board: &ChessBoard, previous_board: Option<&ChessBoard>, board_history: &Vec<ChessBoard>, turn: PieceColor, moves_ahead: i32) -> String {
-    let get_letter = |letter: usize| {
-        match letter {
-            0 => 'a',
-            1 => 'b',
-            2 => 'c',
-            3 => 'd',
-            4 => 'e',
-            5 => 'f',
-            6 => 'g',
-            _ => 'h',
-        }
-    };
-
-    let get_number = |number: usize| {
-        match number {
-            0 => '1',
-            1 => '2',
-            2 => '3',
-            3 => '4',
-            4 => '5',
-            5 => '6',
-            6 => '7',
-            _ => '8',
-        }
-    };
-
-    println!("Looking {} moves ahead...", moves_ahead);
+pub fn bitboard_minimax(board: &ChessBoard, previous_board: Option<&ChessBoard>, board_history: &Vec<ChessBoard>, turn: PieceColor, player: &Player, eval_func: EvaluationFunction, alpha_beta_pruning: bool, multi_threading: bool, constants: Constants, other_eval: BitBoardEvaluationFunction) -> String {
+    println!("Looking {} moves ahead...", player.moves_ahead);
     let start_time = std::time::Instant::now();
-    let bb = board_to_bitboard(&board);
-    let prev_bb = if let Some(b) = &previous_board {
-        Some(board_to_bitboard(b))
+
+    let board = board_to_bitboard(board);
+    let previous_board = match previous_board {
+        Some(board) => Some(board_to_bitboard(board)),
+        None => None
+    };
+    let board_history: Vec<[u64; 12]> = board_history.iter().map(|board| board_to_bitboard(board)).collect();
+
+    let mut evaluated_moves: Vec<(i32, BitBoardMove)> = Vec::new();
+
+    let moves = generate_possible_moves(&board, previous_board.as_ref(), turn, &constants);
+
+    if !multi_threading {
+        for (mov, new_bitboard) in moves {
+            let mut new_board_history = board_history.clone();
+            new_board_history.push(new_bitboard.clone());
+            let eval = bitboard_minimax_helper(&new_bitboard, Some(&board), turn.opposite_color(), eval_func, &new_board_history, player.moves_ahead - 1, i32::MIN, i32::MAX, alpha_beta_pruning, &constants, other_eval);
+            evaluated_moves.push((eval, mov));
+        }
     } else {
-        None
-    };
 
-    let mut bb_history = Vec::new();
-    for b in board_history {
-        bb_history.push(board_to_bitboard(b));
-    }
 
-    let c = Constants::new();
-    let possible_moves = generate_possible_moves(&bb, None, turn, &c);
-    let mut thread_handles = Vec::with_capacity(50);
-    let opposite_turn = match turn {
-        PieceColor::White => PieceColor::Black,
-        PieceColor::Black => PieceColor::White
-    };
+        let threads = num_cpus::get();
+        let queue: work_queue::Queue<(BitBoardMove, [u64; 12])> = work_queue::Queue::new(threads, 128);
 
-    for mov in possible_moves {
-        let prev_bb_cp = prev_bb.clone();
-        let mov_cp = mov.clone();
-        let bb_history_cp = bb_history.clone();
-        thread_handles.push(thread::spawn(move || -> (i32, ((u64, u64), (u64, u64))) {
-            let maximizing_player = match turn {
-                PieceColor::White => false,
-                PieceColor::Black => true
-            };
-            (bitboard_alpha_beta_pruning_multi_threading_helper(&mov_cp.1, prev_bb_cp.as_ref(), maximizing_player, <i32>::min_value(), <i32>::max_value(), 1, simple_board_evaluation_with_position_bitboard, moves_ahead, &bb_history_cp), mov_cp.0)
-        }));
-    }
+        for item in moves {
+            queue.push(item.clone());
+        }
 
-    let mut thread_results = Vec::with_capacity(50);
-
-    for handle in thread_handles {
-        let res = handle.join().unwrap();
-        thread_results.push(res);
-    }
-
-    let mut best_move = 0;
-
-    for i in 0..thread_results.len() {
-        if turn == PieceColor::White && thread_results[i].0 > thread_results[best_move].0 {
-            best_move = i;
-        } else if turn == PieceColor::Black && thread_results[i].0 < thread_results[best_move].0 {
-            best_move = i;
+        let handles: Vec<_> = queue.local_queues().map(|mut local_queue| {
+            let board_cp = board.clone();
+            let mut board_history_cp = board_history.clone();
+            let new_depth = player.moves_ahead - 1;
+            let constants_cp = constants.clone();
+            std::thread::spawn(move || -> Vec<(i32, BitBoardMove)> {
+                let mut results: Vec<(i32, BitBoardMove)> = Vec::with_capacity(20);
+                while let Some((mov, new_board)) = local_queue.pop() {
+                    board_history_cp.push(new_board.clone());
+                    let eval = bitboard_minimax_helper(&new_board, Some(&board_cp), turn.opposite_color(), eval_func, &board_history_cp, new_depth, i32::MIN, i32::MAX, alpha_beta_pruning, &constants_cp, other_eval);
+                    results.push((eval, mov));
+                }
+                return results;
+            })
+        }).collect();
+    
+        for handle in handles {
+            let ret = handle.join().unwrap();
+            for result in ret.iter() {
+                evaluated_moves.push(result.clone());
+            }
         }
     }
+    
 
-    let ((letter_from, number_from), (letter_to, number_to)) = &thread_results[best_move].1;
+    let init = match turn {
+        PieceColor::White => i32::MIN,
+        PieceColor::Black => i32::MAX
+    };
 
+    let best_move = evaluated_moves.iter().fold((init, None), |a, b| {
+        match turn {
+            PieceColor::White => if a.0 > b.0 { a } else { (b.0, Some(&b.1)) },
+            PieceColor::Black => if a.0 < b.0 { a } else { (b.0, Some(&b.1)) }
+        }
+    }).1.expect("Minimax did not find any moves!");
+
+    let ((letter_from, number_from), (letter_to, number_to)) = best_move;
     let mov_str = format!("{}{} {}{} \n", get_letter(*letter_from as usize), get_number(*number_from as usize), get_letter(*letter_to as usize), get_number(*number_to as usize));
     println!("Finished in {} seconds, making the following move: {}", start_time.elapsed().as_millis() as f32 / 1000., mov_str);
+
     mov_str
 }
 
-fn bitboard_alpha_beta_pruning_multi_threading_helper(board: &BitBoard, prev_board: Option<&BitBoard>, maximizing_player: bool, mut alpha: i32, mut beta: i32, depth: i32, evaluate: fn (board: &BitBoard, prev_board: Option<&BitBoard>, board_history: &Vec<BitBoard>, depth: i32, constants: &Constants) -> i32, moves_ahead: i32, board_history: &Vec<BitBoard>) -> i32 {
-    let c = Constants::new();
+fn bitboard_minimax_helper(board: &BitBoard, previous_board: Option<&BitBoard>, turn: PieceColor, eval_func: EvaluationFunction, board_history: &Vec<BitBoard>, depth: i32, alpha: i32, beta: i32, alpha_beta_pruning: bool, constants: &Constants, other_eval: BitBoardEvaluationFunction) -> i32 {
+    let maximizing_player = turn == PieceColor::White;
+    let moves = generate_possible_moves(&board, previous_board, turn, &constants);
 
-    let possible_moves = if maximizing_player {
-        generate_possible_moves(&board, prev_board, PieceColor::White, &c)
+    if depth == 0 || moves.len() == 0 {
+        return other_eval(board, previous_board, board_history, depth, constants);
+    }
+
+    let mut ret_value = if maximizing_player {
+        i32::MIN
     } else {
-        generate_possible_moves(&board, prev_board, PieceColor::Black, &c)
+        i32::MAX
     };
 
-    if possible_moves.len() == 0 || depth >= moves_ahead as i32 {
-        return evaluate(&board, prev_board, board_history, depth, &c);
-    }
+    let mut new_alpha = alpha;
+    let mut new_beta = beta;
 
-    if maximizing_player {
-        let mut max_eval = <i32>::min_value();
+    for (_, new_bitboard) in moves {
+        let mut new_board_history = board_history.clone();
+        new_board_history.push(new_bitboard.clone());
+        let eval = bitboard_minimax_helper(&new_bitboard, Some(board), turn.opposite_color(), eval_func, &new_board_history, depth - 1, new_alpha, new_beta, alpha_beta_pruning, constants, other_eval);
 
-        for mov in possible_moves {
-            let eval = bitboard_alpha_beta_pruning_multi_threading_helper(&mov.1, Some(board), false, alpha, beta, depth + 1, evaluate, moves_ahead, board_history);
-            max_eval = std::cmp::max(max_eval, eval);
-            alpha = std::cmp::max(alpha, eval);
-            if beta <= alpha {
-                break;
-            }
-        }
-
-        return max_eval;
-    } else {
-        let mut min_eval = <i32>::max_value();
-
-        for mov in possible_moves {
-            let eval = bitboard_alpha_beta_pruning_multi_threading_helper(&mov.1, Some(board), true, alpha, beta, depth + 1, evaluate, moves_ahead, board_history);
-            min_eval = std::cmp::min(min_eval, eval);
-            beta = std::cmp::min(beta, eval);
-            if beta <= alpha {
-                break;
-            }
-        }
-
-        return min_eval;
-    }
-}
-
-pub fn alpha_beta_pruning_ai_tree_generate_with_threads(board: &ChessBoard, previous_board: Option<&ChessBoard>, board_history: &Vec<ChessBoard>, turn: PieceColor, moves_ahead: i32) -> String {
-    let get_letter = |letter: usize| {
-        match letter {
-            0 => 'a',
-            1 => 'b',
-            2 => 'c',
-            3 => 'd',
-            4 => 'e',
-            5 => 'f',
-            6 => 'g',
-            _ => 'h',
-        }
-    };
-
-    let get_number = |number: usize| {
-        match number {
-            0 => '1',
-            1 => '2',
-            2 => '3',
-            3 => '4',
-            4 => '5',
-            5 => '6',
-            6 => '7',
-            _ => '8',
-        }
-    };
-
-    println!("Looking {} moves ahead...", moves_ahead);
-    let start_time = std::time::Instant::now();
-    let moveset_board = board.generate_moveset_board(previous_board, turn);
-    // let mut count = 0;
-
-    // for i in 0..8 {
-    //     for j in 0..8 {
-    //         count += moveset_board[i][j].len();
-    //     }
-    // }
-    // println!("{:?}", moveset_board);
-    // println!("{:?}", count);
-    // return "a7 a6 \n".to_string();
-    let mut possible_moves = Vec::with_capacity(50);
-
-    for i in 0..8 {
-        for j in 0..8 {
-            for mov in &moveset_board.board[i][j] {
-                possible_moves.push(mov);
-            }
-        }
-    }
-
-    let mut thread_handles = Vec::with_capacity(50);
-
-    let opposite_turn = match turn {
-        PieceColor::White => PieceColor::Black,
-        PieceColor::Black => PieceColor::White
-    };
-
-    for mov in possible_moves {
-        let prev_board_cp = if let Some(board) = previous_board {
-            Some(board.clone())
-        } else {
-            None
-        };
-        let mov_cp = mov.clone();
-        let new_board = board.do_move(mov);
-        let board_history_cp = board_history.clone();
-        thread_handles.push(thread::spawn(move || -> (i32, Move) {
-            (thread_work(new_board, prev_board_cp, opposite_turn, moves_ahead, &board_history_cp), mov_cp)
-        }));
-    }
-
-    let mut thread_results = Vec::with_capacity(50);
-
-    // for mov in possible_moves {
-    //     let prev_board_cp = if let Some(board) = previous_board {
-    //         Some(board.clone())
-    //     } else {
-    //         None
-    //     };
-    //     let mov_cp = mov.clone();
-    //     let new_board = board.do_move(mov);
-    //     thread_results.push((thread_work(new_board, prev_board_cp, opposite_turn, moves_ahead), mov_cp));
-    // }
-
-    for handle in thread_handles {
-        let res = handle.join().unwrap();
-        thread_results.push(res);
-    }
-
-    let mut best_move = 0;
-
-    for i in 0..thread_results.len() {
-        if turn == PieceColor::White && thread_results[i].0 > thread_results[best_move].0 {
-            best_move = i;
-        } else if turn == PieceColor::Black && thread_results[i].0 < thread_results[best_move].0 {
-            best_move = i;
-        }
-    }
-
-    let mov = &thread_results[best_move].1;
-    let ((letter_from, number_from), (letter_to, number_to)) = mov.moves[0];
-
-    let mov_str = format!("{}{} {}{} \n", get_letter(letter_from), get_number(number_from), get_letter(letter_to), get_number(number_to));
-    println!("Finished in {} seconds, making the following move: {}", start_time.elapsed().as_millis() as f32 / 1000., mov_str);
-    mov_str
-}
-
-fn thread_work(board: ChessBoard, prev_board: Option<ChessBoard>, turn: PieceColor, moves_ahead: i32, board_history: &Vec<ChessBoard>) -> i32 {
-    let maximizing_player = match turn {
-        PieceColor::White => true,
-        PieceColor::Black => false
-    };
-    thread_work_helper(board, prev_board.as_ref(), maximizing_player, <i32>::min_value(), <i32>::max_value(), 1, simple_board_evaluation_with_position, moves_ahead, board_history)
-}
-
-fn thread_work_helper(board: ChessBoard, prev_board: Option<&ChessBoard>, maximizing_player: bool, mut alpha: i32, mut beta: i32, depth: i32, evaluate: fn (board: &ChessBoard, prev_board: Option<&ChessBoard>, board_history: &Vec<ChessBoard>, depth: i32) -> i32, moves_ahead: i32, board_history: &Vec<ChessBoard>) -> i32 {
-    let move_board = if maximizing_player {
-        board.generate_moveset_board(prev_board, PieceColor::White)
-    } else {
-        board.generate_moveset_board(prev_board, PieceColor::Black)
-    };
-
-    let mut move_count = 0;
-
-    for i in 0..8 {
-        for j in 0..8 {
-            move_count += move_board.board[i][j].len();
-        }
-    }
-
-    if move_count == 0 || depth >= moves_ahead as i32 {
-        return evaluate(&board, prev_board, board_history, depth);
-    }
-
-    if maximizing_player {
-        let mut max_eval = <i32>::min_value();
-
-        'first_max: for i in 0..8 {
-            for j in 0..8 {
-                for mov in &move_board.board[i][j] {
-                    let child_board = board.do_move(mov);
-                    let eval = thread_work_helper(child_board, Some(&board), false, alpha, beta, depth + 1, evaluate, moves_ahead, board_history);
-                    max_eval = std::cmp::max(max_eval, eval);
-                    alpha = std::cmp::max(alpha, eval);
-                    if beta <= alpha {
-                        break 'first_max;
-                    }
-                }
-            }
-        }
-
-        return max_eval;
-    } else {
-        let mut min_eval = <i32>::max_value();
-
-        'first_min: for i in 0..8 {
-            for j in 0..8 {
-                for mov in &move_board.board[i][j] {
-                    let child_board = board.do_move(mov);
-                    let eval = thread_work_helper(child_board, Some(&board), true, alpha, beta, depth + 1, evaluate, moves_ahead, board_history);
-                    min_eval = std::cmp::min(min_eval, eval);
-                    beta = std::cmp::min(beta, eval);
-                    if beta <= alpha {
-                        break 'first_min;
-                    }
-                }
-            }
-        }
-
-        return min_eval;
-    }
-}
-
-pub fn mini_max_ai(board: &ChessBoard, turn: PieceColor, moves_ahead: i32) -> String {
-    let get_letter = |letter: usize| {
-        match letter {
-            0 => 'a',
-            1 => 'b',
-            2 => 'c',
-            3 => 'd',
-            4 => 'e',
-            5 => 'f',
-            6 => 'g',
-            _ => 'h',
-        }
-    };
-
-    let get_number = |number: usize| {
-        match number {
-            0 => '1',
-            1 => '2',
-            2 => '3',
-            3 => '4',
-            4 => '5',
-            5 => '6',
-            6 => '7',
-            _ => '8',
-        }
-    };
-
-    let tree = generate_board_tree(board, turn, moves_ahead);
-    let maxi_player = if turn == PieceColor::White { true } else { false };
-    let ((letter_from, number_from), (letter_to, number_to)) = mini_max(&tree, None, maxi_player, simple_board_evaluation).1.unwrap().moves[0];
-    let mov_str = format!("{}{} {}{} \n", get_letter(letter_from), get_number(number_from), get_letter(letter_to), get_number(number_to));
-    println!("{}", mov_str);
-    mov_str
-}
-
-pub fn alpha_beta_pruning_ai(board: &ChessBoard, prev_board: Option<&ChessBoard>, board_history: &Vec<ChessBoard>, turn: PieceColor, moves_ahead: i32) -> String {
-    let get_letter = |letter: usize| {
-        match letter {
-            0 => 'a',
-            1 => 'b',
-            2 => 'c',
-            3 => 'd',
-            4 => 'e',
-            5 => 'f',
-            6 => 'g',
-            _ => 'h',
-        }
-    };
-
-    let get_number = |number: usize| {
-        match number {
-            0 => '1',
-            1 => '2',
-            2 => '3',
-            3 => '4',
-            4 => '5',
-            5 => '6',
-            6 => '7',
-            _ => '8',
-        }
-    };
-
-    println!("{}", board.board_ascii(true));
-    println!("Generating move tree with depth {} using max {} seconds", moves_ahead, SEARCH_TIME);
-    let start = std::time::Instant::now();
-    let tree = generate_board_tree(board, turn, moves_ahead);
-    let maxi_player = if turn == PieceColor::White { true } else { false };
-    println!("Finished generating the tree in {} seconds (nodes: {}, leaves: {}, height: {}), starting search", start.elapsed().as_secs(), tree.count_nodes(), tree.count_leaves(), tree.get_height());
-    let start = std::time::Instant::now();
-    let ((letter_from, number_from), (letter_to, number_to)) = alpha_beta_pruning(&tree, prev_board, maxi_player, <i32>::min_value(), <i32>::max_value(), 0, simple_board_evaluation_with_position, board_history).1.unwrap().moves[0];
-    let mov_str = format!("{}{} {}{} \n", get_letter(letter_from), get_number(number_from), get_letter(letter_to), get_number(number_to));
-    println!("Finished searching in {} seconds, making the following move: {}", start.elapsed().as_secs(), mov_str);
-    mov_str
-}
-
-fn mini_max(node: &Node, prev_board: Option<&ChessBoard>, max: bool, evaluate: fn (board: &ChessBoard, prev_board: Option<&ChessBoard>) -> i32) -> (i32, Option<Move>) {
-    let return_mov = match node.mov.as_ref() {
-        Some(mov) => Some(mov.clone()),
-        None => None
-    };
-
-    if node.is_leaf() {
-        let eval = evaluate(&node.data, prev_board);
-        return (eval, return_mov);
-    }
-
-    if max {
-        let mut max_eval = <i32>::min_value();
-        
-        let mut mov = &None;
-        for child in &node.children {
-            let eval = mini_max(child, Some(&node.data), false, evaluate).0;
-            if eval > max_eval {
-                max_eval = eval;
-                mov = &child.mov;
-            }
-        }
-        
-        if return_mov.is_none() {
-            return (max_eval, Some(mov.as_ref().unwrap().clone()));
-        }
-        return (max_eval, return_mov);
-    } else {
-        let mut min_eval = <i32>::max_value();
-        let mut mov = &None;
-        for child in &node.children {
-            let eval = mini_max(child, Some(&node.data), true, evaluate).0;
-            if eval < min_eval {
-                min_eval = eval;
-                mov = &child.mov;
-            }
-        }
-
-        if return_mov.is_none() {
-            return (min_eval, Some(mov.as_ref().unwrap().clone()));
-        }
-        return (min_eval, return_mov);
-    }
-}
-
-fn alpha_beta_pruning(node: &Node, prev_board: Option<&ChessBoard>, max: bool, alpha: i32, beta: i32, depth: i32, evaluate: fn (board: &ChessBoard, prev_board: Option<&ChessBoard>, board_history: &Vec<ChessBoard>, depth: i32) -> i32, board_history: &Vec<ChessBoard>) -> (i32, Option<Move>) {
-    let return_mov = match node.mov.as_ref() {
-        Some(mov) => Some(mov.clone()),
-        None => None
-    };
-
-    if node.is_leaf() {
-        let eval = evaluate(&node.data, prev_board, board_history, depth);
-        return (eval, return_mov);
-    }
-
-    if max {
-        let mut max_eval = <i32>::min_value();
-        
-        let mut mov = &None;
-        let mut new_alpha = alpha;
-        for child in &node.children {
-            let eval = alpha_beta_pruning(child, Some(&node.data), false, new_alpha, beta, depth + 1, evaluate, board_history).0;
-            if eval > max_eval {
-                max_eval = eval;
-                mov = &child.mov;
+        if maximizing_player {
+            if eval > ret_value {
+                ret_value = eval;
             }
             if eval > new_alpha {
                 new_alpha = eval;
             }
-            if beta <= new_alpha {
-                break;
-            }
-        }
-        
-        if return_mov.is_none() {
-            return (max_eval, Some(mov.as_ref().unwrap().clone()));
-        }
-        return (max_eval, return_mov);
-    } else {
-        let mut min_eval = <i32>::max_value();
-        let mut mov = &None;
-        let mut new_beta = beta;
-        for child in &node.children {
-            let eval = alpha_beta_pruning(child, Some(&node.data), true, alpha, new_beta, depth + 1, evaluate, board_history).0;
-            if eval < min_eval {
-                min_eval = eval;
-                mov = &child.mov;
+        } else {
+            if eval < ret_value {
+                ret_value = eval;
             }
             if eval < new_beta {
                 new_beta = eval;
             }
-            if new_beta <= alpha {
-                break;
-            }
         }
 
-        if return_mov.is_none() {
-            return (min_eval, Some(mov.as_ref().unwrap().clone()));
-        }
-        return (min_eval, return_mov);
-    }
-}
-
-pub fn generate_board_tree(board: &ChessBoard, turn: PieceColor, moves_ahead: i32) -> Node {
-    let now = std::time::Instant::now();
-    let mut root = Node::new(board.clone(), None);
-    // root_root should be previous board???
-    generate_children(&mut root, None, turn, moves_ahead, now);
-    root
-}
-
-fn generate_children(root: &mut Node, root_root: Option<&ChessBoard>, turn: PieceColor, depth: i32, start: std::time::Instant) {
-    if start.elapsed().as_secs() as usize >= SEARCH_TIME {
-        return;
-    }
-
-    let b = &root.data;
-
-    // let moves = ChessBoard::generate_moveset_board(b, root_root, turn);
-    let moveset_board = b.generate_moveset_board(root_root, turn);
-
-    for i in 0..8 {
-        for j in 0..8 {
-            let vec = &moveset_board.board[i][j];
-            for mov in vec {
-                root.children.push(Node::new(b.do_move(&mov), Some(mov.clone())));
-            }
+        if alpha_beta_pruning && new_beta <= new_alpha {
+            break;
         }
     }
 
-    if depth > 1 {
-        for node in &mut root.children {
-            generate_children(node, Some(b), turn.opposite_color(), depth - 1, start);
-        }
-    }
-}
-
-
-pub struct Node {
-    pub data: ChessBoard,
-    mov: Option<Move>,
-    pub children: Vec<Node>
-}
-
-impl Node {
-    fn new(data: ChessBoard, mov: Option<Move>) -> Self {
-        Self {
-            data,
-            mov,
-            children: Vec::with_capacity(NODE_CHILDREN_START_CAPACITY)
-        }
-    }
-
-    fn is_leaf(&self) -> bool {
-        self.children.len() == 0
-    }
-
-    pub fn count_nodes(&self) -> usize {
-        let mut count = 0;
-
-        for node in &self.children {
-            count += node.count_nodes();
-        }
-
-        count + 1
-    }
-
-    pub fn count_leaves(&self) -> usize {
-        if self.is_leaf() {
-            return 1;
-        }
-
-        let mut count = 0;
-
-        for node in &self.children {
-            count += node.count_leaves();
-        }
-
-        count
-    }
-
-    pub fn get_height(&self) -> usize {
-        if self.is_leaf() {
-            return 0;
-        }
-
-        let mut largest_height = 0;
-
-        for node in &self.children {
-            largest_height = std::cmp::max(largest_height, node.get_height() + 1);
-        }
-
-        largest_height
-    }
+    return ret_value;
 }
 
 fn simple_board_evaluation(board: &ChessBoard, prev_board: Option<&ChessBoard>) -> i32 {
@@ -1054,7 +552,7 @@ pub fn simple_board_evaluation_with_position(board: &ChessBoard, prev_board: Opt
     value
 }
 
-fn simple_board_evaluation_with_position_bitboard(board: &BitBoard, prev_board: Option<&BitBoard>, board_history: &Vec<BitBoard>, depth: i32, constants: &Constants) -> i32 {
+pub fn simple_board_evaluation_with_position_bitboard(board: &BitBoard, prev_board: Option<&BitBoard>, board_history: &Vec<BitBoard>, depth: i32, constants: &Constants) -> i32 {
     match bitboard_check_game_end(&board, prev_board, PieceColor::White, &constants) {
         EndType::Checkmate => {
             return <i32>::min_value() / 2 + depth;

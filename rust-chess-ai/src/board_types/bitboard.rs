@@ -20,6 +20,7 @@ pub enum PieceNum {
     BlackKing = 11
 }
 
+#[derive(Clone)]
 pub struct Constants {
     pub start_board: BitBoard,
     pub row_and_column_mask: [u64; 64],
@@ -46,56 +47,56 @@ impl Constants {
     }
 }
 
-fn generate_start_board() -> BitBoard {
-    let mut possible_moves = [0; 12];
+pub fn generate_start_board() -> BitBoard {
+    let mut board = [0; 12];
 
     // White pawns
-    for i in 8..16 {
-        possible_moves[0] += 1 << i;
+    for i in 0..8 {
+        board[PieceNum::WhitePawn as usize] += 1 << pos_to_num(i, 1);
     }
 
     // White rooks
-    possible_moves[1] += 1 << 0;
-    possible_moves[1] += 1 << 7;
+    board[PieceNum::WhiteRook as usize] += 1 << pos_to_num(0, 0);
+    board[PieceNum::WhiteRook as usize] += 1 << pos_to_num(7, 0);
 
     // White knights
-    possible_moves[2] += 1 << 1;
-    possible_moves[2] += 1 << 6;
+    board[PieceNum::WhiteKnight as usize] += 1 << pos_to_num(1, 0);
+    board[PieceNum::WhiteKnight as usize] += 1 << pos_to_num(6, 0);
 
     // White bishops
-    possible_moves[3] += 1 << 2;
-    possible_moves[3] += 1 << 5;
+    board[PieceNum::WhiteBishop as usize] += 1 << pos_to_num(2, 0);
+    board[PieceNum::WhiteBishop as usize] += 1 << pos_to_num(5, 0);
 
     // White queen
-    possible_moves[4] += 1 << 3;
+    board[PieceNum::WhiteQueen as usize] += 1 << pos_to_num(3, 0);
 
     // White king
-    possible_moves[5] += 1 << 4;
+    board[PieceNum::WhiteKing as usize] += 1 << pos_to_num(4, 0);
 
     // Black pawns
-    for i in 48..56 {
-        possible_moves[6] += 1 << i;
+    for i in 0..8 {
+        board[PieceNum::BlackPawn as usize] += 1 << pos_to_num(i, 6);
     }
 
     // Black rooks
-    possible_moves[7] += 1 << 56;
-    possible_moves[7] += 1 << 63;
+    board[PieceNum::BlackRook as usize] += 1 << pos_to_num(0, 7);
+    board[PieceNum::BlackRook as usize] += 1 << pos_to_num(7, 7);
 
     // Black knights
-    possible_moves[8] += 1 << 57;
-    possible_moves[8] += 1 << 62;
+    board[PieceNum::BlackKnight as usize] += 1 << pos_to_num(1, 7);
+    board[PieceNum::BlackKnight as usize] += 1 << pos_to_num(6, 7);
 
     // Black bishops
-    possible_moves[9] += 1 << 58;
-    possible_moves[9] += 1 << 61;
+    board[PieceNum::BlackBishop as usize] += 1 << pos_to_num(2, 7);
+    board[PieceNum::BlackBishop as usize] += 1 << pos_to_num(5, 7);
 
     // Black queen
-    possible_moves[10] += 1 << 59;
+    board[PieceNum::BlackQueen as usize] += 1 << pos_to_num(3, 7);
 
     // Black king
-    possible_moves[11] += 1 << 60;
+    board[PieceNum::BlackKing as usize] += 1 << pos_to_num(4, 7);
 
-    possible_moves
+    board
 }
 
 fn generate_row_and_column_mask() -> [u64; 64] {
@@ -186,6 +187,7 @@ fn generate_diagonal_mask() -> [u64; 64] {
     possible_moves
 }
 
+// First = White, Second = Black
 fn generate_pawn_reach() -> [[u64; 64]; 2] {
     let mut possible_moves = [[0; 64]; 2];
     let side_constants = [1, -1];
@@ -249,30 +251,30 @@ fn generate_rook_reach() -> [HashMap<u64, u64>; 64] {
             points.push(pos_to_num(j, number));
         }
 
-        let mut b = 0;
-        let mut k = 0;
-        while k < points.len() {
-            let num_pos = points[k];
-            if b & (1 << num_pos) == 0 {
-                b += 1 << num_pos;
-                for l in 0..k {
+        let mut board = 0;
+        let mut count = 0;
+        while count < points.len() {
+            let num_pos = points[count];
+            if board & (1 << num_pos) == 0 {
+                board += 1 << num_pos;
+                for l in 0..count {
                     let num_pos = points[l];
-                    b -= 1 << num_pos;
+                    board -= 1 << num_pos;
                 }
-                possibilities.push(b);
-                k = 0;
+                possibilities.push(board);
+                count = 0;
             } else {
-                k += 1;
+                count += 1;
             }
         }
 
         for p in possibilities {
-            let mut b = 0;
+            let mut board = 0;
 
             // Up
             for j in number + 1..8 {
                 let pos = 1 << pos_to_num(letter, j);
-                b += pos;
+                board += pos;
                 if p & pos == pos {
                     break;
                 }
@@ -281,7 +283,7 @@ fn generate_rook_reach() -> [HashMap<u64, u64>; 64] {
             // Down
             for j in (0..number).rev() {
                 let pos = 1 << pos_to_num(letter, j);
-                b += pos;
+                board += pos;
                 if p & pos == pos {
                     break;
                 }
@@ -290,7 +292,7 @@ fn generate_rook_reach() -> [HashMap<u64, u64>; 64] {
             // Left
             for j in (0..letter).rev() {
                 let pos = 1 << pos_to_num(j, number);
-                b += pos;
+                board += pos;
                 if p & pos == pos {
                     break;
                 }
@@ -299,13 +301,13 @@ fn generate_rook_reach() -> [HashMap<u64, u64>; 64] {
             // Right
             for j in letter + 1..8 {
                 let pos = 1 << pos_to_num(j, number);
-                b += pos;
+                board += pos;
                 if p & pos == pos {
                     break;
                 }
             }
 
-            possible_moves[i as usize].insert(p, b);
+            possible_moves[i as usize].insert(p, board);
         }
     }
 
@@ -320,18 +322,18 @@ fn generate_knight_reach() -> [u64; 64] {
 
     for i in 0..64 {
         let (letter, number) = num_to_pos(i);
-        let mut b = 0;
+        let mut board = 0;
 
         for diffs in position_diffs {
             let (letter_diff, number_diff) = diffs;
             let new_letter = letter as i32 + letter_diff;
             let new_number = number as i32 + number_diff;
             if 0 <= new_letter && new_letter < 8 && 0 <= new_number && new_number < 8 {
-                b += 1 << pos_to_num(new_letter as u64, new_number as u64);
+                board += 1 << pos_to_num(new_letter as u64, new_number as u64);
             }
         }
 
-        possible_moves[i as usize] = b;
+        possible_moves[i as usize] = board;
     }
 
     possible_moves
@@ -386,20 +388,20 @@ fn generate_bishop_reach() -> [HashMap<u64, u64>; 64] {
             points.push(pos_to_num(new_letter as u64, new_number as u64));
         }
 
-        let mut b = 0;
-        let mut k = 0;
-        while k < points.len() {
-            let num_pos = points[k];
-            if b & (1 << num_pos) == 0 {
-                b += 1 << num_pos;
-                for l in 0..k {
+        let mut board = 0;
+        let mut count = 0;
+        while count < points.len() {
+            let num_pos = points[count];
+            if board & (1 << num_pos) == 0 {
+                board += 1 << num_pos;
+                for l in 0..count {
                     let num_pos = points[l];
-                    b -= 1 << num_pos;
+                    board -= 1 << num_pos;
                 }
-                possibilities.push(b);
-                k = 0;
+                possibilities.push(board);
+                count = 0;
             } else {
-                k += 1;
+                count += 1;
             }
         }
 
@@ -477,18 +479,18 @@ fn generate_king_reach() -> [u64; 64] {
 
     for i in 0..64 {
         let (letter, number) = num_to_pos(i);
-        let mut b = 0;
+        let mut board = 0;
 
         for diffs in position_diffs {
             let (letter_diff, number_diff) = diffs;
             let new_letter = letter as i32 + letter_diff;
             let new_number = number as i32 + number_diff;
             if 0 <= new_letter && new_letter < 8 && 0 <= new_number && new_number < 8 {
-                b += 1 << pos_to_num(new_letter as u64, new_number as u64);
+                board += 1 << pos_to_num(new_letter as u64, new_number as u64);
             }
         }
 
-        possible_moves[i as usize] = b;
+        possible_moves[i as usize] = board;
     }
 
     possible_moves
