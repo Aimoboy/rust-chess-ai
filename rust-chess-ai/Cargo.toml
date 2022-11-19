@@ -8,6 +8,7 @@ edition = "2018"
 [dependencies]
 work-queue = "0.1.3"
 num_cpus = "1.13.1"
+rustc-hash = "1.1.0"
 
 [profile.release]
 lto = true

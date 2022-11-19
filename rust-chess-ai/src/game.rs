@@ -1,24 +1,37 @@
-use crate::board_types::board::MovesetBoard;
+use std::marker::PhantomData;
 
-use super::{Player};
-use super::board::{ChessBoard, Move, Pos};
-use super::enums::{piece_color::*, end_type::*};
+use crate::{
+    Player,
+    enums::{
+        piece_color::PieceColor,
+        end_type::EndType,
+        chess_error::ChessError
+    },
+    traits::{
+        chess_board_contract::ChessBoardContract
+    },
+    board_types::bitboard::Constants
+};
+
+use std::sync::Arc;
 
 const BOARD_HISTORY_START_CAPACITY: usize = 100;
 
-pub struct Game {
-    board_history: Vec<ChessBoard>,
-    turn: PieceColor
+pub struct Game<T> {
+    board_history: Vec<T>,
+    turn: PieceColor,
+    constants: Constants
 }
 
-impl Game {
+impl<T: ChessBoardContract + Clone> Game<T> {
     pub fn new() -> Self {
-        let mut vector = Vec::with_capacity(BOARD_HISTORY_START_CAPACITY);
-        vector.push(ChessBoard::new_start_board());
+        let mut history = Vec::with_capacity(BOARD_HISTORY_START_CAPACITY);
+        history.push(T::new_board());
 
         Self {
-            board_history: vector,
-            turn: PieceColor::White
+            board_history: history,
+            turn: PieceColor::White,
+            constants: Constants::new()
         }
     }
 
@@ -26,70 +39,86 @@ impl Game {
         print!("\x1B[2J\x1B[1;1H");
     }
 
-    pub fn run(mut game: Game, white_player: Player, black_player: Player) {
-        // clear_console();
+    pub fn run(mut game: Game<T>, white_player: Player<T>, black_player: Player<T>) -> Result<EndType, ChessError> {
+        let const_ref = Arc::new(game.constants);
         let win_type = loop {
-            let opponent_color = match game.turn {
-                PieceColor::White => PieceColor::Black,
-                PieceColor::Black => PieceColor::White
-            };
+            let opponent_color = game.turn.opposite_color();
+
             let history_len = game.board_history.len();
             let prev_board = if history_len > 1 { Some(&game.board_history[history_len - 2] ) } else { None };
-            let current_board = &game.board_history[history_len - 1];
-            let move_board = ChessBoard::generate_moveset_board(current_board, prev_board, game.turn);
+            let current_board: T = game.board_history[history_len - 1].clone();
 
-            let res: String = match &game.turn {
-                PieceColor::White => (white_player.turn_function)(current_board, prev_board, &game.board_history, game.turn, &white_player),
-                PieceColor::Black => (black_player.turn_function)(current_board, prev_board, &game.board_history, game.turn, &black_player)
+            let possible_moves: Vec<(String, T)> = current_board.generate_moves(prev_board, game.turn, &const_ref)?;
+
+            let res: Result<String, ChessError> = match &game.turn {
+                PieceColor::White => (white_player.turn_function)(&current_board, prev_board, &game.board_history, game.turn, &white_player, &const_ref),
+                PieceColor::Black => (black_player.turn_function)(&current_board, prev_board, &game.board_history, game.turn, &black_player, &const_ref)
+            };
+
+            let res: String = match res {
+                Ok(res) => {
+                    if res.len() < 5 {
+                        return Err(ChessError::InvalidMoveString);
+                    }
+                    res[0..5].to_string()
+                },
+                Err(err) => {
+                    return Err(err);
+                }
             };
 
             if !Self::validate_move_string(&res) {
-                // print!("\x1B[2J\x1B[1;1H");
-                println!("Not valid string");
-                continue;
+                return Err(ChessError::InvalidMoveString);
             }
 
-            let (res, mov) = Self::validate_move(Self::string_to_move(&res), &move_board);
+            // for item in &possible_moves {
+            //     println!("{}, {}", item.0, item.0 == res);
+            // }
 
-            if !res {
-                // print!("\x1B[2J\x1B[1;1H");
-                println!("Not valid move");
-                continue;
+            let filtered_moves = possible_moves.into_iter()
+                                                       .filter(|mov| (*mov).0 == res)
+                                                       .map(|mov| mov.1)
+                                                       .collect::<Vec<_>>();
+
+            if filtered_moves.len() == 0 {
+                return Err(ChessError::InvalidMove);
             }
 
-            let new_board = current_board.do_move(mov.unwrap());
 
-            match &new_board.check_for_game_end(Some(current_board), opponent_color) {
+            let new_board = &filtered_moves[0];
+
+            println!("{}\n", new_board.board_ascii(true));
+
+            match new_board.check_game_end(Some(&current_board), opponent_color, &const_ref)? {
                 EndType::NoEnd => (),
                 typ => {
-                    game.board_history.push(new_board);
-                    break typ.clone()
+                    game.board_history.push(new_board.clone());
+                    break typ;
                 }
             }
 
-            match &new_board.check_repetition(&game.board_history) {
-                EndType::NoEnd => (),
-                typ => {
-                    game.board_history.push(new_board);
-                    break typ.clone()
-                }
-            }
+            // match &new_board.check_repetition(&game.board_history) {
+            //     EndType::NoEnd => (),
+            //     typ => {
+            //         game.board_history.push(new_board);
+            //         break typ.clone()
+            //     }
+            // }
 
-            game.board_history.push(new_board);
+            game.board_history.push(new_board.clone());
             game.turn = opponent_color;
-
-            // print!("\x1B[2J\x1B[1;1H");
         };
 
-        // print!("\x1B[2J\x1B[1;1H");
-        println!("{}\n", ChessBoard::board_ascii(&game.board_history[game.board_history.len() - 1], true));
-        if win_type == EndType::Checkmate {
-            match game.turn {
-                PieceColor::White => println!("White won by checkmate!"),
-                PieceColor::Black => println!("Black won by checkmate!")
-            }
-        } else if win_type == EndType::Tie {
-            println!("Game ended in a tie.");
+        match win_type {
+            EndType::Checkmate(color) => {
+                println!("{} won by checkmate!", color.get_string());
+                Ok(EndType::Checkmate(color))
+            },
+            EndType::Tie => {
+                println!("Game ended in a tie.");
+                Ok(EndType::Tie)
+            },
+            EndType::NoEnd => Err(ChessError::EndWithNoEnd)
         }
     }
 
@@ -98,10 +127,6 @@ impl Game {
         let valid_numbers = ['1', '2', '3', '4', '5', '6', '7', '8'];
 
         let mut characters = move_str.chars();
-
-        if move_str.len() <= 5 {
-            return false;
-        }
 
         if !valid_letters.contains(&mut characters.nth(0).unwrap()) {
             return false;
@@ -124,48 +149,6 @@ impl Game {
         }
 
         true
-    }
-
-    fn char_to_index(chr: char, arr: &[char; 8]) -> usize {
-        for i in 0..8 {
-            if chr == arr[i] {
-                return i;
-            }
-        }
-
-        return usize::MAX;
-    }
-
-    fn string_to_move(move_str: &String) -> (Pos, Pos) {
-        let valid_letters = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
-        let valid_numbers = ['1', '2', '3', '4', '5', '6', '7', '8'];
-
-        let mut characters = move_str.chars();
-
-        let letter_from_char = characters.nth(0).unwrap();
-        let number_from_char = characters.nth(0).unwrap();
-
-        let letter_to_char = characters.nth(1).unwrap();
-        let number_to_char = characters.nth(0).unwrap();
-
-        ((Self::char_to_index(letter_from_char, &valid_letters), Self::char_to_index(number_from_char, &valid_numbers)), (Self::char_to_index(letter_to_char, &valid_letters), Self::char_to_index(number_to_char, &valid_numbers)))
-    }
-
-    fn validate_move(m: (Pos, Pos), move_board: &MovesetBoard) -> (bool, Option<&Move>) {
-        let ((letter_from, number_from), (letter_to, number_to)) = m;
-
-        let vector = &move_board.board[letter_from][number_from];
-
-        for i in 0..vector.len() {
-            for j in 0..vector[i].moves.len() {
-                let (_, to) = vector[i].moves[j];
-                if letter_to == to.0 && number_to == to.1 {
-                    return (true, Some(&vector[i]));
-                }
-            }
-        }
-
-        (false, None)
     }
 }
 
