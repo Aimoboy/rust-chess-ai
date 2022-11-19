@@ -1,1 +1,2 @@
 rust-chess-ai/target/**/*
+rust-chess-ai/Cargo.lock
